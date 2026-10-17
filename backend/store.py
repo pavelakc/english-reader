@@ -1,6 +1,10 @@
-"""Storage: Supabase (PostgREST over HTTPS) in production, in-memory for local tests."""
+"""Storage: Supabase (PostgREST over HTTPS) in production, in-memory for local tests.
+
+Book pages and the translation cache are shared by everyone;
+vocabulary, reading progress and usage are per user (user_id = Supabase auth user id).
+"""
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import requests
 
@@ -10,6 +14,7 @@ def now_iso():
 
 
 VOCAB_FIELDS = ("word", "lemma", "translation", "ipa", "pos", "context", "status")
+SRS_FIELDS = ("ease", "interval_days", "reps", "lapses", "due_at", "status", "translation")
 
 
 class SupabaseStore:
@@ -28,7 +33,7 @@ class SupabaseStore:
         r.raise_for_status()
         return r.json() if r.content else None
 
-    # --- book pages ---
+    # --- book pages (shared) ---
     def total_pages(self, book_id, level):
         rows = self._req("GET", "reader_book_pages", params={
             "select": "page", "book_id": f"eq.{book_id}", "level": f"eq.{level}",
@@ -48,7 +53,7 @@ class SupabaseStore:
             self._req("POST", "reader_book_pages", params={"on_conflict": "book_id,level,page"},
                       json=rows[i:i + 200], prefer="resolution=merge-duplicates,return=minimal")
 
-    # --- translation cache ---
+    # --- translation cache (shared) ---
     def get_translation(self, key):
         rows = self._req("GET", "reader_translations", params={"select": "data", "cache_key": f"eq.{key}"})
         return rows[0]["data"] if rows else None
@@ -58,43 +63,51 @@ class SupabaseStore:
                   json={"cache_key": key, "word": word, "data": data},
                   prefer="resolution=merge-duplicates,return=minimal")
 
-    # --- vocab ---
-    def list_vocab(self):
-        return self._req("GET", "reader_vocab", params={"select": "*", "order": "created_at.desc"})
+    # --- usage limit (per user) ---
+    def bump_usage(self, uid, limit):
+        return bool(self._req("POST", "rpc/reader_bump_usage", json={"p_user": uid, "p_limit": limit}))
 
-    def get_vocab(self, vid):
-        rows = self._req("GET", "reader_vocab", params={"select": "*", "id": f"eq.{vid}"})
+    # --- vocab (per user) ---
+    T_VOCAB = "reader_user_vocab"
+
+    def list_vocab(self, uid):
+        return self._req("GET", self.T_VOCAB, params={"select": "*", "user_id": f"eq.{uid}", "order": "created_at.desc"})
+
+    def get_vocab(self, uid, vid):
+        rows = self._req("GET", self.T_VOCAB, params={"select": "*", "id": f"eq.{vid}", "user_id": f"eq.{uid}"})
         return rows[0] if rows else None
 
-    def add_vocab(self, item):
+    def add_vocab(self, uid, item):
         row = {k: item.get(k) for k in VOCAB_FIELDS if item.get(k) is not None}
-        row["updated_at"] = now_iso()
-        rows = self._req("POST", "reader_vocab", params={"on_conflict": "word"}, json=row,
+        row.update(user_id=uid, updated_at=now_iso())
+        rows = self._req("POST", self.T_VOCAB, params={"on_conflict": "user_id,word"}, json=row,
                          prefer="resolution=merge-duplicates,return=representation")
         return rows[0]
 
-    def update_vocab(self, vid, fields):
+    def update_vocab(self, uid, vid, fields):
         fields = dict(fields, updated_at=now_iso())
-        rows = self._req("PATCH", "reader_vocab", params={"id": f"eq.{vid}"}, json=fields,
+        rows = self._req("PATCH", self.T_VOCAB, params={"id": f"eq.{vid}", "user_id": f"eq.{uid}"}, json=fields,
                          prefer="return=representation")
         return rows[0] if rows else None
 
-    def delete_vocab(self, vid):
-        self._req("DELETE", "reader_vocab", params={"id": f"eq.{vid}"})
+    def delete_vocab(self, uid, vid):
+        self._req("DELETE", self.T_VOCAB, params={"id": f"eq.{vid}", "user_id": f"eq.{uid}"})
 
-    def due_vocab(self, limit):
-        return self._req("GET", "reader_vocab", params={
-            "select": "*", "status": "eq.learning", "due_at": f"lte.{now_iso()}",
+    def due_vocab(self, uid, limit):
+        return self._req("GET", self.T_VOCAB, params={
+            "select": "*", "user_id": f"eq.{uid}", "status": "eq.learning", "due_at": f"lte.{now_iso()}",
             "order": "due_at.asc", "limit": limit})
 
-    # --- progress ---
-    def list_progress(self):
-        return self._req("GET", "reader_progress", params={"select": "*", "order": "updated_at.desc"})
+    # --- progress (per user) ---
+    T_PROG = "reader_user_progress"
 
-    def save_progress(self, book_id, level, page, total_pages):
-        self._req("POST", "reader_progress", params={"on_conflict": "book_id,level"},
-                  json={"book_id": book_id, "level": level, "page": page, "total_pages": total_pages,
-                        "updated_at": now_iso()},
+    def list_progress(self, uid):
+        return self._req("GET", self.T_PROG, params={"select": "*", "user_id": f"eq.{uid}", "order": "updated_at.desc"})
+
+    def save_progress(self, uid, book_id, level, page, total_pages):
+        self._req("POST", self.T_PROG, params={"on_conflict": "user_id,book_id,level"},
+                  json={"user_id": uid, "book_id": book_id, "level": level, "page": page,
+                        "total_pages": total_pages, "updated_at": now_iso()},
                   prefer="resolution=merge-duplicates,return=minimal")
 
 
@@ -102,7 +115,7 @@ class MemoryStore:
     """Same interface, kept in RAM. Used when SUPABASE_URL is not set (local testing)."""
 
     def __init__(self):
-        self.pages, self.trans, self.vocab, self.progress = {}, {}, {}, {}
+        self.pages, self.trans, self.vocab, self.progress, self.usage = {}, {}, {}, {}, {}
         self._id = 0
 
     def total_pages(self, book_id, level):
@@ -121,44 +134,56 @@ class MemoryStore:
     def save_translation(self, key, word, data):
         self.trans[key] = data
 
-    def list_vocab(self):
-        return sorted(self.vocab.values(), key=lambda v: v["created_at"], reverse=True)
+    def bump_usage(self, uid, limit):
+        k = (uid, date.today())
+        if self.usage.get(k, 0) >= limit:
+            return False
+        self.usage[k] = self.usage.get(k, 0) + 1
+        return True
 
-    def get_vocab(self, vid):
-        return self.vocab.get(int(vid))
+    def _mine(self, uid):
+        return [v for v in self.vocab.values() if v["user_id"] == uid]
 
-    def add_vocab(self, item):
-        for v in self.vocab.values():
+    def list_vocab(self, uid):
+        return sorted(self._mine(uid), key=lambda v: v["created_at"], reverse=True)
+
+    def get_vocab(self, uid, vid):
+        v = self.vocab.get(int(vid))
+        return v if v and v["user_id"] == uid else None
+
+    def add_vocab(self, uid, item):
+        for v in self._mine(uid):
             if v["word"] == item["word"]:
                 v.update({k: item[k] for k in VOCAB_FIELDS if item.get(k) is not None})
                 return v
         self._id += 1
-        v = {"id": self._id, "status": "learning", "ease": 2.5, "interval_days": 0, "reps": 0, "lapses": 0,
-             "due_at": now_iso(), "created_at": now_iso()}
+        v = {"id": self._id, "user_id": uid, "status": "learning", "ease": 2.5, "interval_days": 0, "reps": 0,
+             "lapses": 0, "due_at": now_iso(), "created_at": now_iso()}
         v.update({k: item.get(k) for k in VOCAB_FIELDS if item.get(k) is not None})
         self.vocab[self._id] = v
         return v
 
-    def update_vocab(self, vid, fields):
-        v = self.vocab.get(int(vid))
+    def update_vocab(self, uid, vid, fields):
+        v = self.get_vocab(uid, vid)
         if v:
             v.update(fields)
         return v
 
-    def delete_vocab(self, vid):
-        self.vocab.pop(int(vid), None)
+    def delete_vocab(self, uid, vid):
+        if self.get_vocab(uid, vid):
+            self.vocab.pop(int(vid), None)
 
-    def due_vocab(self, limit):
+    def due_vocab(self, uid, limit):
         n = now_iso()
-        due = [v for v in self.vocab.values() if v["status"] == "learning" and v["due_at"] <= n]
+        due = [v for v in self._mine(uid) if v["status"] == "learning" and v["due_at"] <= n]
         return sorted(due, key=lambda v: v["due_at"])[:limit]
 
-    def list_progress(self):
-        return list(self.progress.values())
+    def list_progress(self, uid):
+        return [p for (u, _, _), p in self.progress.items() if u == uid]
 
-    def save_progress(self, book_id, level, page, total_pages):
-        self.progress[(book_id, level)] = {"book_id": book_id, "level": level, "page": page,
-                                           "total_pages": total_pages, "updated_at": now_iso()}
+    def save_progress(self, uid, book_id, level, page, total_pages):
+        self.progress[(uid, book_id, level)] = {"book_id": book_id, "level": level, "page": page,
+                                                "total_pages": total_pages, "updated_at": now_iso()}
 
 
 def make_store():

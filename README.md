@@ -8,46 +8,27 @@ backend/              → Railway (Flask)
 Supabase              → проект «english-trainer бот», таблицы reader_* уже созданы
 ```
 
-## 1. Supabase (уже сделано)
+## Вход и пользователи
 
-В проекте `rbllzupvrgrtqhvboifl` созданы 4 таблицы с префиксом `reader_`, чтобы не пересекаться с таблицами бота `words` / `progress`:
+Каждый входит по своей почте: вводит адрес, получает 6-значный код и вводит его. Пароля нет, ключей никто не вводит. У каждого свой словарь и прогресс, на любом устройстве. Страница не содержит ни одного ключа: вход идёт через сервер.
 
-| Таблица | Что хранит |
+Лимит: `DAILY_LIMIT` новых переводов на человека в день (по умолчанию 300). Уже переведённое берётся из общего кэша бесплатно и без лимита.
+
+## Где что живёт
+
+| Часть | Где |
 |---|---|
-| `reader_book_pages` | Кэш книг, разбитых на страницы (скачиваются один раз) |
-| `reader_translations` | Кэш переводов (одно и то же слово в одном предложении не переводится повторно) |
-| `reader_vocab` | Твой словарь + данные для повторения (SM-2) |
-| `reader_progress` | На какой странице каждой книги ты остановился |
+| Страница | GitHub Pages: https://pavelakc.github.io/english-reader/ (файл `index.html` в корне) |
+| Сервер | Railway, проект `english-reader`, сервис `reader-api` (папка `backend`), деплой при каждом push в `main` |
+| База | Supabase «english-trainer бот»: `reader_book_pages`, `reader_translations` (общие), `reader_user_vocab`, `reader_user_progress`, `reader_usage` (по пользователям) |
 
-RLS включён, политик нет: доступ только у бэкенда через service_role ключ.
+Переменные Railway: `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, необязательные `CLAUDE_MODEL`, `DAILY_LIMIT`, `ALLOWED_ORIGINS`, `SITE_URL`.
 
-Нужен ключ: **Supabase → Project Settings → API Keys → service_role (secret)**. Он должен быть только в Railway и никогда не попадать в index.html.
+## Настройка Supabase для входа (один раз)
 
-## 2. Railway (бэкенд)
-
-1. Залей папку `backend/` в GitHub-репозиторий (или как подпапку, тогда в Railway укажи Root Directory = `backend`).
-2. Railway → New Project → Deploy from GitHub repo.
-3. Variables:
-
-| Переменная | Значение |
-|---|---|
-| `APP_KEY` | любой длинный пароль, придумай сам |
-| `ANTHROPIC_API_KEY` | ключ с console.anthropic.com |
-| `SUPABASE_URL` | `https://rbllzupvrgrtqhvboifl.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | service_role ключ из шага 1 |
-| `CLAUDE_MODEL` | необязательно, по умолчанию `claude-haiku-5-5` (быстро и дёшево) |
-| `ALLOWED_ORIGINS` | необязательно, например `https://<твой-логин>.github.io` |
-
-4. Settings → Networking → Generate Domain. Проверь в браузере: `https://<домен>/api/health` должен ответить `{"ok": true, "storage": "SupabaseStore"}`.
-
-Если там написано `MemoryStore`, значит не заданы переменные Supabase и данные пропадут при перезапуске.
-
-## 3. GitHub Pages (фронтенд)
-
-1. Положи `frontend/index.html` в репозиторий (например `english-reader`).
-2. Settings → Pages → Deploy from branch → `main` / root.
-3. Открой страницу на iPhone → **Настройки** → вставь адрес Railway и `APP_KEY` → «Сохранить и проверить».
-4. В Safari: «Поделиться» → «На экран Домой», и откроется как приложение.
+1. **Authentication → URL Configuration**: Site URL = `https://pavelakc.github.io/english-reader/`.
+2. **Authentication → Emails → Templates**: в шаблоны **Magic Link** и **Confirm signup** добавь строку с кодом: `<p>Код для входа: <b>{{ .Token }}</b></p>`.
+3. **Чтобы письма приходили всем, а не только тебе:** Authentication → Emails → **SMTP Settings** → подключи свою почту (например Gmail с паролем приложения: host `smtp.gmail.com`, port `465`, user — твой gmail, password — пароль приложения).
 
 ## Как пользоваться
 
