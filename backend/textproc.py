@@ -80,7 +80,23 @@ def _from_zip(data: bytes) -> str:
     return "\n\n".join(parts)
 
 
-_PAGE_NUM = re.compile(r"^\s*(page\s*)?\d{1,4}\s*$", re.I)
+_PAGE_NUM = re.compile(r"^\s*(page\s*)?\d{1,4}(\s*(of|/)\s*\d{1,4})?\s*$", re.I)
+
+# Browser print headers/footers that end up inside PDFs, e.g.
+#   file:///C|/Users/x/Desktop/Alice%204000.txt[14/09/2012 3:06:04 p.m.]
+#   https://example.com/book.html  3/45
+#   14/09/2012 15:06   Alice in Wonderland
+_PRINT_JUNK = [
+    re.compile(r"(?:file|https?):/{2,3}\S*?(?:\[[^\]\n]{0,60}\]|(?=\s|$))(?:\s+\d{1,4}\s*/\s*\d{1,4})?", re.I),
+    re.compile(r"\[\s*\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:[ap]\.?\s?m\.?)?\s*\]", re.I),
+    re.compile(r"^\s*\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:[ap]\.?\s?m\.?)?\b.*$", re.I | re.M),
+]
+
+
+def strip_print_junk(text: str) -> str:
+    for rx in _PRINT_JUNK:
+        text = rx.sub(" ", text)
+    return re.sub(r"[ \t]{2,}", " ", text)
 _SENT_END = re.compile(r"[.!?:;\"'”’)\]]$")
 
 
@@ -88,6 +104,7 @@ def to_paragraphs(raw: str) -> list[str]:
     """Rebuild paragraphs from hard-wrapped text (PDF or TXT)."""
     raw = raw.replace("\r\n", "\n").replace("\r", "\n").replace("­", "")
     raw = raw.replace("ﬁ", "fi").replace("ﬂ", "fl").replace("\t", " ")
+    raw = strip_print_junk(raw)
     lines = [ln.rstrip() for ln in raw.split("\n")]
     lines = [ln for ln in lines if not _PAGE_NUM.match(ln)]
 
