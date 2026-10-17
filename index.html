@@ -54,6 +54,17 @@ nav.tabs button.on{color:var(--accent)}
 .book .by{color:var(--muted);font-size:13px;margin-bottom:6px}
 .book p{margin:0 0 10px;font-size:14px;line-height:1.45}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px;margin:2px 0 12px}
+.seg button{flex:1;border:0;background:none;border-radius:9px;padding:8px 4px;font-size:13px;color:var(--muted);line-height:1.2}
+.seg button b{display:block;font-size:14px;color:var(--ink);font-weight:600}
+.seg button.on{background:var(--paper);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.seg button.on b{color:var(--accent)}
+.lvl{display:inline-block;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin-bottom:12px}
+.bookact{display:flex;gap:10px}
+.bookact .btn{padding:14px 8px;font-size:16px;white-space:nowrap}
+.bookact .read{flex:2}
+.bookact .listen{flex:1}
+.bookact small{display:block;font-weight:400;font-size:12px;opacity:.85;margin-top:2px}
 .chip{white-space:nowrap;flex:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 12px;font-size:13px}
 .chip:active,.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .cont{display:flex;align-items:center;gap:12px}
@@ -326,7 +337,10 @@ let VMAP = new Map();        // word/lemma -> vocab item
 let PROGRESS = LS.get('gr.progress', {});  // "id:level" -> {page,total}
 let cur = null;              // {book, level, page, total}
 
-const LEVEL_NAME = {0:'Рассказ', 1200:'1200 · A2', 4000:'4000 · B1+', 6000:'6000 · B2', 8000:'8000 · C1'};
+const LEVELS = {0:{name:'Рассказ', short:'Рассказ', cefr:'A2'}, 1200:{name:'Лёгкий', short:'Лёгкий', cefr:'A2'},
+  4000:{name:'Проще', short:'Проще', cefr:'B1'}, 6000:{name:'Средне', short:'Средне', cefr:'B2'}, 8000:{name:'Сложнее', short:'Сложнее', cefr:'C1'}};
+const LEVEL_NAME = Object.fromEntries(Object.entries(LEVELS).map(([k,v]) => [k, v.name + ' · ' + v.cefr]));
+const pickedLevel = {};   // book id -> level chosen on its card
 
 // ---------- navigation ----------
 function show(v){
@@ -375,15 +389,40 @@ function renderContinue(){
 function renderBooks(){
   if(!BOOKS.length) return;
   const list = BOOKS.filter(b => kind==='all' || (kind==='easy' ? b.levels.some(l=>l<=1200) : b.kind===kind));
-  $('#books').innerHTML = list.map(b => `<div class="card book">
-    <h3>${esc(b.title)}</h3><div class="by">${esc(b.author)}</div><p>${esc(b.about)}</p>
-    <div class="chips">${b.levels.map(l => `<button class="chip" data-id="${b.id}" data-lv="${l}">${LEVEL_NAME[l]||l}</button>`).join('')}</div>
-  </div>`).join('');
-  $$('#books .chip').forEach(c => c.onclick = () => openBook(c.dataset.id, +c.dataset.lv));
+  $('#books').innerHTML = list.map(b => {
+    const lv = levelFor(b);
+    const p = PROGRESS[b.id + ':' + lv];
+    const started = p && p.page > 0;
+    const levelUi = b.levels.length > 1
+      ? `<div class="seg">${b.levels.map(l => `<button class="${l===lv?'on':''}" data-pick="${b.id}" data-lv="${l}"><b>${LEVELS[l].short}</b>${LEVELS[l].cefr}</button>`).join('')}</div>`
+      : `<span class="lvl">${LEVEL_NAME[lv]}</span>`;
+    return `<div class="card book">
+      <h3>${esc(b.title)}</h3><div class="by">${esc(b.author)}</div><p>${esc(b.about)}</p>
+      ${levelUi}
+      <div class="bookact">
+        <button class="btn primary read" data-read="${b.id}">📖 ${started ? 'Продолжить' : 'Читать'}${started ? `<small>стр. ${p.page+1}${p.total ? ' из ' + p.total : ''}</small>` : ''}</button>
+        <button class="btn ghost listen" data-listen="${b.id}">🎧 Слушать</button>
+      </div>
+    </div>`;
+  }).join('');
+  $$('#books [data-pick]').forEach(c => c.onclick = () => { pickedLevel[c.dataset.pick] = +c.dataset.lv; S.prefLevel = +c.dataset.lv; saveSettings(); renderBooks(); });
+  $$('#books [data-read]').forEach(c => c.onclick = () => { const b = BOOKS.find(x => x.id === c.dataset.read); openBook(b.id, levelFor(b)); });
+  $$('#books [data-listen]').forEach(c => c.onclick = () => { unlockSpeech(); const b = BOOKS.find(x => x.id === c.dataset.listen); openBook(b.id, levelFor(b), true); });
+}
+function levelFor(b){
+  if(pickedLevel[b.id] && b.levels.includes(pickedLevel[b.id])) return pickedLevel[b.id];
+  const started = b.levels.filter(l => PROGRESS[b.id + ':' + l]).sort((x,y) => String(PROGRESS[b.id+':'+y].at||'').localeCompare(String(PROGRESS[b.id+':'+x].at||'')));
+  if(started.length) return started[0];
+  if(S.prefLevel && b.levels.includes(S.prefLevel)) return S.prefLevel;
+  return b.levels[0];
+}
+function unlockSpeech(){
+  // iOS only allows speech that starts from a tap; speak a silent utterance now so the later one is allowed
+  try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }catch(e){}
 }
 
 // ---------- reader ----------
-async function openBook(id, level){
+async function openBook(id, level, listen){
   const book = BOOKS.find(b => b.id === id); if(!book) return;
   const p = PROGRESS[id + ':' + level];
   cur = {book, level, page: p ? p.page : 0, total: p ? p.total : null};
@@ -391,7 +430,8 @@ async function openBook(id, level){
   const au = $('#bookAudio');
   if(book.audio){ au.src = book.audio; au.classList.remove('hidden'); } else { au.removeAttribute('src'); au.classList.add('hidden'); }
   show('reader');
-  loadPage(cur.page);
+  await loadPage(cur.page);
+  if(listen && $$('#rText .s').length) startListening();
 }
 async function loadPage(n){
   stopSpeaking();
@@ -515,8 +555,8 @@ function stopSpeaking(){
   $$('.s.speaking').forEach(s => s.classList.remove('speaking'));
   if('speechSynthesis' in window) speechSynthesis.cancel();
 }
-$('#listenBtn').onclick = () => {
-  if(listening){ stopSpeaking(); return; }
+$('#listenBtn').onclick = () => { if(listening) stopSpeaking(); else startListening(); };
+function startListening(){
   const sents = $$('#rText .s'); if(!sents.length) return;
   listening = true; $('#listenBtn').textContent = '■';
   let i = 0;
