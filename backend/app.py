@@ -52,8 +52,77 @@ token_check = None  # fn(token) -> {"id":..., "email":...} or None
 _token_cache: dict[str, tuple[float, dict]] = {}
 
 
+MSG = {
+    "uk": {
+        "Слишком много попыток. Подожди минуту и попробуй снова.": "Забагато спроб. Зачекай хвилину й спробуй знову.",
+        "Почта пока не может отправить письмо на этот адрес. Владелец приложения должен подключить отправку писем.": "Поки не вдається надіслати лист на цю адресу.",
+        "Код неверный или устарел. Запроси новый.": "Код неправильний або застарів. Запроси новий.",
+        "Не удалось отправить письмо": "Не вдалося надіслати лист",
+        "Проверь адрес почты": "Перевір адресу пошти",
+        "Введи код из письма": "Введи код із листа",
+        "Код не подошёл": "Код не підійшов",
+        "Нет сессии": "Немає сесії",
+        "Сессия истекла, войди снова": "Сесія завершилася, увійди знову",
+        "Нужно войти": "Потрібно увійти",
+        "Книга не найдена": "Книжку не знайдено",
+        "Эту книгу пока нельзя открыть.": "Цю книжку поки не можна відкрити.",
+        "Не удалось скачать книгу с сайта университета": "Не вдалося завантажити книжку із сайту університету",
+        "Не получилось подготовить книгу. Попробуй другой уровень.": "Не вдалося підготувати книжку. Спробуй інший рівень.",
+        "Нет слова": "Немає слова",
+        "Нет предложения": "Немає речення",
+        "Перевод не получился, попробуй ещё раз": "Переклад не вдався, спробуй ще раз",
+        "Неверный статус": "Неправильний статус",
+        "Не найдено": "Не знайдено",
+        "На сегодня лимит новых переводов исчерпан. Уже переведённые слова доступны, новые — завтра.": "Ліміт нових перекладів на сьогодні вичерпано. Уже перекладені слова доступні, нові — завтра.",
+    },
+    "en": {
+        "Слишком много попыток. Подожди минуту и попробуй снова.": "Too many attempts. Wait a minute and try again.",
+        "Почта пока не может отправить письмо на этот адрес. Владелец приложения должен подключить отправку писем.": "We can't send email to this address yet.",
+        "Код неверный или устарел. Запроси новый.": "The code is wrong or expired. Request a new one.",
+        "Не удалось отправить письмо": "Couldn't send the email",
+        "Проверь адрес почты": "Check the email address",
+        "Введи код из письма": "Enter the code from the email",
+        "Код не подошёл": "That code didn't work",
+        "Нет сессии": "Not signed in",
+        "Сессия истекла, войди снова": "Your session expired, sign in again",
+        "Нужно войти": "Please sign in",
+        "Книга не найдена": "Book not found",
+        "Эту книгу пока нельзя открыть.": "This book can't be opened yet.",
+        "Не удалось скачать книгу с сайта университета": "Couldn't download the book from the university site",
+        "Не получилось подготовить книгу. Попробуй другой уровень.": "Couldn't prepare the book. Try another level.",
+        "Нет слова": "No word",
+        "Нет предложения": "No sentence",
+        "Перевод не получился, попробуй ещё раз": "Translation failed, please try again",
+        "Неверный статус": "Invalid status",
+        "Не найдено": "Not found",
+        "На сегодня лимит новых переводов исчерпан. Уже переведённые слова доступны, новые — завтра.": "You've reached today's limit for new translations. Words already translated still work; new ones tomorrow.",
+    },
+}
+
+TR_LANGS = {"ru": "Russian", "uk": "Ukrainian", "es": "Spanish", "pt": "Portuguese", "fr": "French", "de": "German",
+            "pl": "Polish", "tr": "Turkish", "zh": "Simplified Chinese", "ja": "Japanese", "ko": "Korean",
+            "vi": "Vietnamese", "tl": "Tagalog", "hi": "Hindi", "ar": "Arabic", "fa": "Persian", "it": "Italian",
+            "ro": "Romanian", "kk": "Kazakh"}
+
+
+def _ui_lang():
+    lang = (request.headers.get("X-Lang") or "ru")[:2].lower()
+    return lang if lang in MSG else "ru"
+
+
+def tr(msg):
+    table = MSG.get(_ui_lang(), {})
+    if msg in table:
+        return table[msg]
+    # messages like "<reason>. Эту книгу пока нельзя открыть."
+    for k, v in table.items():
+        if k in msg:
+            return msg.replace(k, v)
+    return msg
+
+
 def err(msg, code=400):
-    return jsonify({"error": msg}), code
+    return jsonify({"error": tr(msg)}), code
 
 
 @app.get("/")
@@ -215,21 +284,26 @@ def book_page(book_id, level, page):
 
 # ---------- translation (signed-in users, daily limit on new translations) ----------
 
-WORD_PROMPT = """You help a Russian-speaking adult (A2–B1) read English books.
+WORD_PROMPT = """You help an adult learner (A2–B1) whose native language is {L} read English books.
 Translate the word as it is used in THIS sentence. Answer with JSON only, no prose:
-{
+{{
  "word": the word as written,
  "lemma": dictionary form (e.g. "went" -> "go"),
- "pos": part of speech in Russian, short ("глагол", "сущ.", "прил.", "нареч."...),
+ "pos": part of speech written in {L}, short,
  "ipa": IPA transcription of the lemma, American English, e.g. "/ɡoʊ/",
- "translation": 1–3 Russian words, the meaning in this context,
- "other": up to 3 other common Russian meanings (array, may be empty),
- "note": one short Russian sentence about usage or grammar here (e.g. tense, why this form), or "",
- "phrase": if the word is part of a phrasal verb or idiom in this sentence: {"text": "...", "translation": "..."}, else null
-}"""
+ "translation": 1–3 words in {L}, the meaning in this context,
+ "other": up to 3 other common meanings in {L} (array, may be empty),
+ "note": one short sentence in {L} about usage or grammar here (e.g. tense, why this form), or "",
+ "phrase": if the word is part of a phrasal verb or idiom in this sentence: {{"text": "...", "translation": "... in {L}"}}, else null
+}}"""
 
-SENT_PROMPT = """Translate this English sentence into natural Russian for a learner.
-Answer with JSON only: {"translation": "...", "note": "one short Russian note on a tricky grammar point, or empty"}"""
+SENT_PROMPT = """Translate this English sentence into natural {L} for a learner.
+Answer with JSON only: {{"translation": "...", "note": "one short note in {L} on a tricky grammar point, or empty"}}"""
+
+
+def _tr_lang(body):
+    lang = (body.get("lang") or "ru").lower()
+    return lang if lang in TR_LANGS else "ru"
 
 LIMIT_MSG = "На сегодня лимит новых переводов исчерпан. Уже переведённые слова доступны, новые — завтра."
 
@@ -264,14 +338,15 @@ def translate():
     sentence = (body.get("sentence") or "").strip()[:600]
     if not word or len(word) > 40:
         return err("Нет слова")
-    key = _key("w1", word.lower(), sentence)
+    lang = _tr_lang(body)
+    key = _key("w1", word.lower(), sentence) if lang == "ru" else _key("w1", lang, word.lower(), sentence)
     cached = store.get_translation(key)
     if cached:
         return jsonify(cached)
     if not store.bump_usage(g.uid, DAILY_LIMIT):
         return err(LIMIT_MSG, 429)
     try:
-        data = _parse_json(_claude(WORD_PROMPT, f"Word: {word}\nSentence: {sentence}"))
+        data = _parse_json(_claude(WORD_PROMPT.format(L=TR_LANGS[lang]), f"Word: {word}\nSentence: {sentence}"))
     except Exception as e:  # noqa: BLE001
         app.logger.warning("translate failed: %s", e)
         return err("Перевод не получился, попробуй ещё раз", 502)
@@ -287,14 +362,15 @@ def translate_sentence():
     sentence = (body.get("sentence") or "").strip()[:800]
     if not sentence:
         return err("Нет предложения")
-    key = _key("s1", sentence)
+    lang = _tr_lang(body)
+    key = _key("s1", sentence) if lang == "ru" else _key("s1", lang, sentence)
     cached = store.get_translation(key)
     if cached:
         return jsonify(cached)
     if not store.bump_usage(g.uid, DAILY_LIMIT):
         return err(LIMIT_MSG, 429)
     try:
-        data = _parse_json(_claude(SENT_PROMPT, sentence))
+        data = _parse_json(_claude(SENT_PROMPT.format(L=TR_LANGS[lang]), sentence))
     except Exception as e:  # noqa: BLE001
         app.logger.warning("sentence failed: %s", e)
         return err("Перевод не получился, попробуй ещё раз", 502)

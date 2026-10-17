@@ -207,7 +207,7 @@ body.auth{padding-bottom:0}
       <button class="chip" data-k="non-fiction">Нон-фикшн</button>
     </div>
     <div id="books"><div class="loading"><div class="spinner"></div>Загружаю каталог…</div></div>
-    <p class="hint">Адаптированные книги Пола Нейшна (Victoria University of Wellington). Бесплатны для использования, продавать нельзя. Уровень — сколько слов нужно знать: 1200 ≈ A2, 4000 ≈ B1+, 6000 ≈ B2, 8000 ≈ C1.</p>
+    <p class="hint">Адаптированные книги Пола Нейшна (Victoria University of Wellington). Бесплатны для использования, продавать нельзя.</p>
   </div>
 </section>
 
@@ -269,6 +269,8 @@ body.auth{padding-bottom:0}
       <select id="sVoice"></select>
       <label class="f">Скорость речи: <span id="rateVal"></span></label>
       <input type="range" id="sRate" min="0.5" max="1.2" step="0.05">
+      <label class="f">Переводить на</label>
+      <select id="sTrLang"></select>
       <div class="row"><span>Произносить слово при нажатии</span><input type="checkbox" id="sAutoSpeak"></div>
       <div class="row"><span>Подсвечивать выученные слова</span><input type="checkbox" id="sShowKnown"></div>
     </div>
@@ -295,6 +297,220 @@ const LS = {
 const S = Object.assign({size:20, rate:0.85, voice:'', autoSpeak:true, showKnown:false}, LS.get('gr.settings', {}));
 const saveSettings = () => LS.set('gr.settings', S);
 
+// ---------- interface language: follows the phone's language (ru / uk / en) ----------
+const I18N = {
+  uk: {
+    'Graded Reader': 'Graded Reader',
+    'Читай адаптированные книги на английском. Нажми на слово — увидишь перевод и услышишь произношение.': 'Читай адаптовані книжки англійською. Натисни на слово — побачиш переклад і почуєш вимову.',
+    'Твоя почта': 'Твоя пошта',
+    'Получить код': 'Отримати код',
+    'Код из письма на': 'Код із листа на',
+    'Войти': 'Увійти',
+    'Другая почта': 'Інша пошта',
+    'Отправить ещё раз': 'Надіслати ще раз',
+    'Пароль не нужен. Словарь и прогресс сохраняются в твоём аккаунте и доступны на любом устройстве.': 'Пароль не потрібен. Словник і прогрес зберігаються у твоєму акаунті й доступні на будь-якому пристрої.',
+    'Библиотека': 'Бібліотека',
+    'Все': 'Усі',
+    'Лёгкие (A2)': 'Легкі (A2)',
+    'Художественные': 'Художні',
+    'Нон-фикшн': 'Нон-фікшн',
+    'Загружаю каталог…': 'Завантажую каталог…',
+    'Книги': 'Книжки',
+    'Адаптированные книги Пола Нейшна (Victoria University of Wellington). Бесплатны для использования, продавать нельзя.': 'Адаптовані книжки Пола Нейшна (Victoria University of Wellington). Безкоштовні для використання, продавати не можна.',
+    'Назад': 'Назад',
+    'Слушать страницу': 'Слухати сторінку',
+    'Мои слова': 'Мої слова',
+    'учу': 'вчу',
+    'выучил': 'вивчив',
+    'повторить': 'повторити',
+    'Учу': 'Вчу',
+    'Выучил': 'Вивчив',
+    'Повторение': 'Повторення',
+    'Настройки': 'Налаштування',
+    'Аккаунт': 'Акаунт',
+    'Выйти': 'Вийти',
+    'Поделиться приложением': 'Поділитися застосунком',
+    'Размер текста:': 'Розмір тексту:',
+    'Голос': 'Голос',
+    'Скорость речи:': 'Швидкість мовлення:',
+    'Переводить на': 'Перекладати на',
+    'Произносить слово при нажатии': 'Вимовляти слово при натисканні',
+    'Подсвечивать выученные слова': 'Підсвічувати вивчені слова',
+    'Слова': 'Слова',
+    'Повтор': 'Повтор',
+    'Нет связи с сервером. Проверь интернет.': "Немає зв'язку з сервером. Перевір інтернет.",
+    'Ошибка сервера': 'Помилка сервера',
+    'Рассказ': 'Оповідання',
+    'Лёгкий': 'Легкий',
+    'Проще': 'Простіше',
+    'Средне': 'Середньо',
+    'Сложнее': 'Складніше',
+    'Продолжить': 'Продовжити',
+    'Читать': 'Читати',
+    'Слушать': 'Слухати',
+    'стр. {p} из {n}': 'стор. {p} з {n}',
+    'стр. {p}': 'стор. {p}',
+    'Скачиваю и готовлю книгу… первый раз это может занять до минуты': 'Завантажую й готую книжку… першого разу це може тривати до хвилини',
+    'Загружаю…': 'Завантажую…',
+    'Озвучка не поддерживается': 'Озвучення не підтримується',
+    'Выучено': 'Вивчено',
+    'В словаре': 'У словнику',
+    'форма слова': 'форма слова',
+    'Ещё': 'Ще',
+    'Фраза': 'Фраза',
+    'Перевести фразу': 'Перекласти фразу',
+    'Уже знаю': 'Вже знаю',
+    'Знаю': 'Знаю',
+    'Удалить': 'Видалити',
+    'В словарь': 'До словника',
+    'Отмечено как выученное': 'Позначено як вивчене',
+    'Добавлено в словарь': 'Додано до словника',
+    'Удалено': 'Видалено',
+    'Пока пусто. Нажми на слово в книге и добавь его в словарь.': 'Поки порожньо. Натисни на слово в книжці й додай його до словника.',
+    '10 мин': '10 хв',
+    'д': 'д',
+    'мес': 'міс',
+    'осталось {n}': 'залишилось {n}',
+    'Готово! Повторено слов: {n}': 'Готово! Повторено слів: {n}',
+    'Сейчас нечего повторять': 'Зараз нічого повторювати',
+    'Добавляй новые слова, нажимая на них в книгах.': 'Додавай нові слова, натискаючи на них у книжках.',
+    'Показать перевод': 'Показати переклад',
+    'Снова': 'Знову',
+    'Трудно': 'Важко',
+    'Хорошо': 'Добре',
+    'Легко': 'Легко',
+    'Автоматически': 'Автоматично',
+    'Читалка для изучения английского': 'Читалка для вивчення англійської',
+    'Ссылка скопирована': 'Посилання скопійовано',
+    'Проверь адрес почты': 'Перевір адресу пошти',
+    'Отправляю письмо…': 'Надсилаю лист…',
+    'Письмо отправлено. Проверь «Входящие» и «Спам».': 'Лист надіслано. Перевір «Вхідні» і «Спам».',
+    'Введи код из письма': 'Введи код із листа',
+    'Проверяю…': 'Перевіряю…',
+    'Сессия закончилась, войди снова.': 'Сесія завершилася, увійди знову.',
+    'Новые переводы будут на этом языке': 'Нові переклади будуть цією мовою'
+  },
+  en: {
+    'Graded Reader': 'Graded Reader',
+    'Читай адаптированные книги на английском. Нажми на слово — увидишь перевод и услышишь произношение.': 'Read graded books in English. Tap a word to see its translation and hear how it sounds.',
+    'Твоя почта': 'Your email',
+    'Получить код': 'Get code',
+    'Код из письма на': 'Code from the email sent to',
+    'Войти': 'Sign in',
+    'Другая почта': 'Different email',
+    'Отправить ещё раз': 'Send again',
+    'Пароль не нужен. Словарь и прогресс сохраняются в твоём аккаунте и доступны на любом устройстве.': 'No password needed. Your words and progress are saved to your account and available on any device.',
+    'Библиотека': 'Library',
+    'Все': 'All',
+    'Лёгкие (A2)': 'Easy (A2)',
+    'Художественные': 'Fiction',
+    'Нон-фикшн': 'Non-fiction',
+    'Загружаю каталог…': 'Loading books…',
+    'Книги': 'Books',
+    'Адаптированные книги Пола Нейшна (Victoria University of Wellington). Бесплатны для использования, продавать нельзя.': 'Graded readers by Paul Nation (Victoria University of Wellington). Free to use, not for sale.',
+    'Назад': 'Back',
+    'Слушать страницу': 'Listen to page',
+    'Мои слова': 'My words',
+    'учу': 'learning',
+    'выучил': 'learned',
+    'повторить': 'to review',
+    'Учу': 'Learning',
+    'Выучил': 'Learned',
+    'Повторение': 'Review',
+    'Настройки': 'Settings',
+    'Аккаунт': 'Account',
+    'Выйти': 'Sign out',
+    'Поделиться приложением': 'Share the app',
+    'Размер текста:': 'Text size:',
+    'Голос': 'Voice',
+    'Скорость речи:': 'Speech rate:',
+    'Переводить на': 'Translate into',
+    'Произносить слово при нажатии': 'Say the word when tapped',
+    'Подсвечивать выученные слова': 'Highlight learned words',
+    'Слова': 'Words',
+    'Повтор': 'Review',
+    'Нет связи с сервером. Проверь интернет.': 'Can’t reach the server. Check your internet.',
+    'Ошибка сервера': 'Server error',
+    'Рассказ': 'Story',
+    'Лёгкий': 'Easy',
+    'Проще': 'Easier',
+    'Средне': 'Medium',
+    'Сложнее': 'Harder',
+    'Продолжить': 'Continue',
+    'Читать': 'Read',
+    'Слушать': 'Listen',
+    'стр. {p} из {n}': 'p. {p} of {n}',
+    'стр. {p}': 'p. {p}',
+    'Скачиваю и готовлю книгу… первый раз это может занять до минуты': 'Downloading and preparing the book… the first time can take up to a minute',
+    'Загружаю…': 'Loading…',
+    'Озвучка не поддерживается': 'Speech isn’t supported here',
+    'Выучено': 'Learned',
+    'В словаре': 'In your words',
+    'форма слова': 'form of',
+    'Ещё': 'Also',
+    'Фраза': 'Sentence',
+    'Перевести фразу': 'Translate sentence',
+    'Уже знаю': 'I know it now',
+    'Знаю': 'I know it',
+    'Удалить': 'Remove',
+    'В словарь': 'Save word',
+    'Отмечено как выученное': 'Marked as learned',
+    'Добавлено в словарь': 'Added to your words',
+    'Удалено': 'Removed',
+    'Пока пусто. Нажми на слово в книге и добавь его в словарь.': 'Nothing here yet. Tap a word in a book and save it.',
+    '10 мин': '10 min',
+    'д': 'd',
+    'мес': 'mo',
+    'осталось {n}': '{n} left',
+    'Готово! Повторено слов: {n}': 'Done! Words reviewed: {n}',
+    'Сейчас нечего повторять': 'Nothing to review right now',
+    'Добавляй новые слова, нажимая на них в книгах.': 'Save new words by tapping them in books.',
+    'Показать перевод': 'Show translation',
+    'Снова': 'Again',
+    'Трудно': 'Hard',
+    'Хорошо': 'Good',
+    'Легко': 'Easy',
+    'Автоматически': 'Automatic',
+    'Читалка для изучения английского': 'A reader for learning English',
+    'Ссылка скопирована': 'Link copied',
+    'Проверь адрес почты': 'Check the email address',
+    'Отправляю письмо…': 'Sending the email…',
+    'Письмо отправлено. Проверь «Входящие» и «Спам».': 'Email sent. Check your Inbox and Spam.',
+    'Введи код из письма': 'Enter the code from the email',
+    'Проверяю…': 'Checking…',
+    'Сессия закончилась, войди снова.': 'Your session ended, please sign in again.',
+    'Новые переводы будут на этом языке': 'New translations will be in this language'
+  }
+};
+const LANG = (() => {
+  const langs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en']).map(l => String(l).toLowerCase().slice(0, 2));
+  for(const l of langs){ if(l === 'ru' || l === 'uk' || l === 'en') return l; if(l === 'be') return 'ru'; }
+  return 'en';
+})();
+document.documentElement.lang = LANG;
+function t(s, vars){
+  let out = (I18N[LANG] && I18N[LANG][s]) || s;
+  if(vars) for(const k in vars) out = out.replace('{' + k + '}', vars[k]);
+  return out;
+}
+function pageOf(page, total){ return total ? t('стр. {p} из {n}', {p: page + 1, n: total}) : t('стр. {p}', {p: page + 1}); }
+function translateDom(root){
+  if(LANG === 'ru') return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = []; while(walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(n => { const k = n.nodeValue.trim(); if(k && I18N[LANG][k]) n.nodeValue = n.nodeValue.replace(k, I18N[LANG][k]); });
+  root.querySelectorAll('[placeholder],[aria-label]').forEach(el => ['placeholder','aria-label'].forEach(a => {
+    const v = el.getAttribute(a); if(v && I18N[LANG][v]) el.setAttribute(a, I18N[LANG][v]);
+  }));
+}
+// language for word translations: the phone's language, Russian when the phone is in English
+const TR_LANGS = {ru:'Русский', uk:'Українська', es:'Español', pt:'Português', fr:'Français', de:'Deutsch', pl:'Polski',
+  tr:'Türkçe', zh:'中文', ja:'日本語', ko:'한국어', vi:'Tiếng Việt', tl:'Tagalog', hi:'हिन्दी', ar:'العربية', fa:'فارسی', it:'Italiano', ro:'Română', kk:'Қазақша'};
+if(!S.trLang || !TR_LANGS[S.trLang]){
+  const phone = String(navigator.language || 'ru').toLowerCase().slice(0, 2);
+  S.trLang = TR_LANGS[phone] ? phone : 'ru';
+}
+
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -306,14 +522,14 @@ let SESSION = LS.get('gr.session', null);   // {access_token, refresh_token, exp
 const saveSession = s => { SESSION = s; LS.set('gr.session', s); };
 
 async function rawApi(path, opts={}, token){
-  const headers = {'Content-Type':'application/json'};
+  const headers = {'Content-Type':'application/json', 'X-Lang': LANG};
   if(token) headers.Authorization = 'Bearer ' + token;
   let res;
   try{
     res = await fetch(API + path, {method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined});
-  }catch(e){ throw new Error('Нет связи с сервером. Проверь интернет.'); }
+  }catch(e){ throw new Error(t('Нет связи с сервером. Проверь интернет.')); }
   let data = null; try{ data = await res.json(); }catch(e){}
-  if(!res.ok){ const er = new Error((data && data.error) || ('Ошибка сервера ' + res.status)); er.status = res.status; throw er; }
+  if(!res.ok){ const er = new Error((data && data.error) || (t('Ошибка сервера') + ' ' + res.status)); er.status = res.status; throw er; }
   return data;
 }
 let refreshing = null;
@@ -341,9 +557,9 @@ let VMAP = new Map();        // word/lemma -> vocab item
 let PROGRESS = LS.get('gr.progress', {});  // "id:level" -> {page,total}
 let cur = null;              // {book, level, page, total}
 
-const LEVELS = {0:{name:'Рассказ', short:'Рассказ', cefr:'A2'}, 1200:{name:'Лёгкий', short:'Лёгкий', cefr:'A2'},
-  4000:{name:'Проще', short:'Проще', cefr:'B1'}, 6000:{name:'Средне', short:'Средне', cefr:'B2'}, 8000:{name:'Сложнее', short:'Сложнее', cefr:'C1'}};
-const LEVEL_NAME = Object.fromEntries(Object.entries(LEVELS).map(([k,v]) => [k, v.name + ' · ' + v.cefr]));
+const LEVELS = {0:{short:t('Рассказ'), cefr:'A2'}, 1200:{short:t('Лёгкий'), cefr:'A2'},
+  4000:{short:t('Проще'), cefr:'B1'}, 6000:{short:t('Средне'), cefr:'B2'}, 8000:{short:t('Сложнее'), cefr:'C1'}};
+const LEVEL_NAME = Object.fromEntries(Object.entries(LEVELS).map(([k,v]) => [k, v.short + ' · ' + v.cefr]));
 const pickedLevel = {};   // book id -> level chosen on its card
 
 // ---------- navigation ----------
@@ -382,10 +598,10 @@ function renderContinue(){
   const items = Object.entries(PROGRESS)
     .map(([k,p]) => { const [id,lv]=k.split(':'); return {book:BOOKS.find(b=>b.id===id), level:+lv, ...p}; })
     .filter(x => x.book).sort((a,b) => String(b.at||'').localeCompare(String(a.at||''))).slice(0,3);
-  $('#continue').innerHTML = items.length ? '<div class="section-title">Продолжить</div>' + items.map(x => {
+  $('#continue').innerHTML = items.length ? '<div class="section-title">' + t('Продолжить') + '</div>' + items.map(x => {
     const pct = x.total ? Math.round((x.page+1)/x.total*100) : 0;
     return `<div class="card cont" data-id="${x.book.id}" data-lv="${x.level}">
-      <div class="t"><h3>${esc(x.book.title)}</h3><div class="hint">${LEVEL_NAME[x.level]||x.level} · стр. ${x.page+1}${x.total?' из '+x.total:''}</div>
+      <div class="t"><h3>${esc(x.book.title)}</h3><div class="hint">${LEVEL_NAME[x.level]||x.level} · ${pageOf(x.page, x.total)}</div>
       <div class="bar"><i style="width:${pct}%"></i></div></div><span style="font-size:22px">›</span></div>`;
   }).join('') : '';
   $$('#continue .cont').forEach(el => el.onclick = () => openBook(el.dataset.id, +el.dataset.lv));
@@ -401,11 +617,11 @@ function renderBooks(){
       ? `<div class="seg">${b.levels.map(l => `<button class="${l===lv?'on':''}" data-pick="${b.id}" data-lv="${l}"><b>${LEVELS[l].short}</b>${LEVELS[l].cefr}</button>`).join('')}</div>`
       : `<span class="lvl">${LEVEL_NAME[lv]}</span>`;
     return `<div class="card book">
-      <h3>${esc(b.title)}</h3><div class="by">${esc(b.author)}</div><p>${esc(b.about)}</p>
+      <h3>${esc(b.title)}</h3><div class="by">${esc(b.author)}</div><p>${esc((LANG !== 'ru' && b['about_' + LANG]) || b.about)}</p>
       ${levelUi}
       <div class="bookact">
-        <button class="btn primary read" data-read="${b.id}">📖 ${started ? 'Продолжить' : 'Читать'}${started ? `<small>стр. ${p.page+1}${p.total ? ' из ' + p.total : ''}</small>` : ''}</button>
-        <button class="btn ghost listen" data-listen="${b.id}">🎧 Слушать</button>
+        <button class="btn primary read" data-read="${b.id}">📖 ${started ? t('Продолжить') : t('Читать')}${started ? `<small>${pageOf(p.page, p.total)}</small>` : ''}</button>
+        <button class="btn ghost listen" data-listen="${b.id}">🎧 ${t('Слушать')}</button>
       </div>
     </div>`;
   }).join('');
@@ -440,7 +656,7 @@ async function openBook(id, level, listen){
 async function loadPage(n){
   stopSpeaking();
   const first = !cur.total;
-  $('#rText').innerHTML = `<div class="loading"><div class="spinner"></div>${first ? 'Скачиваю и готовлю книгу… первый раз это может занять до минуты' : 'Загружаю…'}</div>`;
+  $('#rText').innerHTML = `<div class="loading"><div class="spinner"></div>${first ? t('Скачиваю и готовлю книгу… первый раз это может занять до минуты') : t('Загружаю…')}</div>`;
   try{
     const d = await api(`/api/books/${cur.book.id}/${cur.level}/page/${n}`);
     cur.page = d.page; cur.total = d.total;
@@ -497,7 +713,7 @@ function highlightWords(){
 function updatePager(){
   $('#prevBtn').disabled = !cur || cur.page <= 0;
   $('#nextBtn').disabled = !cur || !cur.total || cur.page >= cur.total - 1;
-  $('#pageInfo').textContent = cur && cur.total ? `Стр. ${cur.page+1} из ${cur.total}` : '';
+  $('#pageInfo').textContent = cur && cur.total ? pageOf(cur.page, cur.total) : '';
   $('#pageBar').style.width = cur && cur.total ? ((cur.page+1)/cur.total*100) + '%' : '0';
 }
 let progTimer;
@@ -545,7 +761,7 @@ function pickVoice(){
     || VOICES.find(v => /en[-_]US/i.test(v.lang)) || VOICES[0];
 }
 function speak(text, rate, onend){
-  if(!('speechSynthesis' in window)) { toast('Озвучка не поддерживается'); return; }
+  if(!('speechSynthesis' in window)) { toast(t('Озвучка не поддерживается')); return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   const v = pickVoice(); if(v){ u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
@@ -591,60 +807,60 @@ async function openWordSheet(word, sentence){
     <div class="skel" style="width:40%"></div><div class="skel" style="width:70%"></div><div class="skel" style="width:55%"></div>`);
   bindSpeak();
   try{
-    const t = await api('/api/translate', {method:'POST', body:{word, sentence}});
+    const tw = await api('/api/translate', {method:'POST', body:{word, sentence, lang: S.trLang}});
     if(req !== sheetReq) return;
-    renderWordSheet(t, sentence, saved);
+    renderWordSheet(tw, sentence, saved);
   }catch(e){
     if(req !== sheetReq) return;
     $('#sheetBody').insertAdjacentHTML('beforeend', `<div class="errbox">${esc(e.message)}</div>`);
     $$('#sheetBody .skel').forEach(x => x.remove());
   }
 }
-function renderWordSheet(t, sentence, saved){
-  const lemma = t.lemma && t.lemma.toLowerCase() !== t.word.toLowerCase() ? t.lemma : '';
-  const hl = esc(sentence).replace(new RegExp('\\b' + t.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b', 'i'), m => `<b>${m}</b>`);
-  const status = saved ? (saved.status === 'known' ? '✓ Выучено' : '★ В словаре') : '';
+function renderWordSheet(tw, sentence, saved){
+  const lemma = tw.lemma && tw.lemma.toLowerCase() !== tw.word.toLowerCase() ? tw.lemma : '';
+  const hl = esc(sentence).replace(new RegExp('\\b' + tw.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b', 'i'), m => `<b>${m}</b>`);
+  const status = saved ? (saved.status === 'known' ? '✓ ' + t('Выучено') : '★ ' + t('В словаре')) : '';
   $('#sheetBody').innerHTML = `
-    <div class="wordline"><span class="big">${esc(t.word)}</span><span class="ipa">${esc(t.ipa||'')}</span>
-      <button class="speak" data-say="${esc(t.word)}">🔊</button><button class="speak" data-slow="${esc(lemma || t.word)}">🐢</button></div>
-    ${lemma ? `<div class="pos">форма слова <b>${esc(lemma)}</b></div>` : ''}
-    <div class="tr">${esc(t.translation||'')}</div>
-    <div class="pos">${esc(t.pos||'')}${status ? ' · ' + status : ''}</div>
-    ${t.other && t.other.length ? `<div class="other">Ещё: ${t.other.map(esc).join(', ')}</div>` : ''}
-    ${t.phrase && t.phrase.text ? `<div class="phrase"><b>${esc(t.phrase.text)}</b> — ${esc(t.phrase.translation)}</div>` : ''}
-    ${t.note ? `<div class="note">${esc(t.note)}</div>` : ''}
+    <div class="wordline"><span class="big">${esc(tw.word)}</span><span class="ipa">${esc(tw.ipa||'')}</span>
+      <button class="speak" data-say="${esc(tw.word)}">🔊</button><button class="speak" data-slow="${esc(lemma || tw.word)}">🐢</button></div>
+    ${lemma ? `<div class="pos">${t('форма слова')} <b>${esc(lemma)}</b></div>` : ''}
+    <div class="tr">${esc(tw.translation||'')}</div>
+    <div class="pos">${esc(tw.pos||'')}${status ? ' · ' + status : ''}</div>
+    ${tw.other && tw.other.length ? `<div class="other">${t('Ещё')}: ${tw.other.map(esc).join(', ')}</div>` : ''}
+    ${tw.phrase && tw.phrase.text ? `<div class="phrase"><b>${esc(tw.phrase.text)}</b> — ${esc(tw.phrase.translation)}</div>` : ''}
+    ${tw.note ? `<div class="note">${esc(tw.note)}</div>` : ''}
     <div class="sent">${hl}</div>
     <div id="sentTr"></div>
     <div class="actions">
-      <button class="btn ghost" id="sayS">🔊 Фраза</button>
-      <button class="btn ghost" id="trS">Перевести фразу</button>
+      <button class="btn ghost" id="sayS">🔊 ${t('Фраза')}</button>
+      <button class="btn ghost" id="trS">${t('Перевести фразу')}</button>
     </div>
     <div class="actions">
-      ${saved && saved.status === 'learning' ? `<button class="btn" id="markKnown">Уже знаю</button>`
-        : `<button class="btn" id="markKnown">Знаю</button>`}
-      ${saved ? `<button class="btn" id="removeW">Удалить</button>` : `<button class="btn primary" id="saveW">＋ В словарь</button>`}
+      ${saved && saved.status === 'learning' ? `<button class="btn" id="markKnown">${t('Уже знаю')}</button>`
+        : `<button class="btn" id="markKnown">${t('Знаю')}</button>`}
+      ${saved ? `<button class="btn" id="removeW">${t('Удалить')}</button>` : `<button class="btn primary" id="saveW">＋ ${t('В словарь')}</button>`}
     </div>`;
   bindSpeak();
   $('#sayS').onclick = () => speak(sentence);
   $('#trS').onclick = async () => {
     $('#sentTr').innerHTML = '<div class="skel"></div>';
     try{
-      const r = await api('/api/translate-sentence', {method:'POST', body:{sentence}});
+      const r = await api('/api/translate-sentence', {method:'POST', body:{sentence, lang: S.trLang}});
       $('#sentTr').innerHTML = `<div class="sent-tr">${esc(r.translation)}</div>${r.note ? `<div class="note">${esc(r.note)}</div>` : ''}`;
     }catch(e){ $('#sentTr').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
   };
-  const payload = status => ({word: t.word, lemma: t.lemma, translation: t.translation, ipa: t.ipa, pos: t.pos, context: sentence, status});
+  const payload = status => ({word: tw.word, lemma: tw.lemma, translation: tw.translation, ipa: tw.ipa, pos: tw.pos, context: sentence, status});
   const save = async status => {
     try{
       const v = saved ? await api(`/api/vocab/${saved.id}`, {method:'PATCH', body:{status}}) : await api('/api/vocab', {method:'POST', body:payload(status)});
       upsertVocab(v); highlightWords(); closeSheet();
-      toast(status === 'known' ? 'Отмечено как выученное' : 'Добавлено в словарь');
+      toast(status === 'known' ? t('Отмечено как выученное') : t('Добавлено в словарь'));
     }catch(e){ toast(e.message); }
   };
   if($('#saveW')) $('#saveW').onclick = () => save('learning');
   $('#markKnown').onclick = () => save('known');
   if($('#removeW')) $('#removeW').onclick = async () => {
-    try{ await api(`/api/vocab/${saved.id}`, {method:'DELETE'}); removeVocab(saved.id); highlightWords(); closeSheet(); toast('Удалено'); }
+    try{ await api(`/api/vocab/${saved.id}`, {method:'DELETE'}); removeVocab(saved.id); highlightWords(); closeSheet(); toast(t('Удалено')); }
     catch(e){ toast(e.message); }
   };
 }
@@ -680,7 +896,7 @@ function renderVocab(){
       <div class="t"><b>${esc(v.lemma || v.word)}</b> <span class="ipa">${esc(v.ipa||'')}</span><div class="m">${esc(v.translation||'')}</div></div>
       <button class="icon-btn" data-say="${esc(v.lemma || v.word)}">🔊</button>
       <button class="icon-btn" data-toggle="${v.id}">${v.status === 'known' ? '↺' : '✓'}</button>
-    </div>`).join('') : `<p class="hint" style="padding:20px 4px">Пока пусто. Нажми на слово в книге и добавь его в словарь.</p>`;
+    </div>`).join('') : `<p class="hint" style="padding:20px 4px">${t('Пока пусто. Нажми на слово в книге и добавь его в словарь.')}</p>`;
   $$('#vocabList [data-say]').forEach(b => b.onclick = () => speak(b.dataset.say));
   $$('#vocabList [data-toggle]').forEach(b => b.onclick = async () => {
     const v = VOCAB.find(x => x.id === +b.dataset.toggle);
@@ -698,18 +914,18 @@ async function startReview(){
 }
 function intervalHint(c, g){
   const r = c.reps || 0, iv = c.interval_days || 0, ease = c.ease || 2.5;
-  if(g === 0) return '10 мин';
+  if(g === 0) return t('10 мин');
   let d = g === 1 ? Math.max(1, Math.round(iv*1.2)) : r === 0 ? 1 : r === 1 ? 3 : Math.max(iv+1, Math.round(iv*ease));
   if(g === 3) d = Math.max(d+1, Math.round(d*1.3));
-  return d < 30 ? d + ' д' : Math.round(d/30) + ' мес';
+  return d < 30 ? d + ' ' + t('д') : Math.round(d/30) + ' ' + t('мес');
 }
 function nextCard(){
   card = queue.shift(); revealed = false;
-  $('#revCount').textContent = card ? `осталось ${queue.length + 1}` : '';
+  $('#revCount').textContent = card ? t('осталось {n}', {n: queue.length + 1}) : '';
   if(!card){
     $('#reviewBox').innerHTML = `<div class="card flash"><div class="big">🎉</div>
-      <div>${doneCount ? `Готово! Повторено слов: ${doneCount}` : 'Сейчас нечего повторять'}</div>
-      <p class="hint">Добавляй новые слова, нажимая на них в книгах.</p></div>`;
+      <div>${doneCount ? t('Готово! Повторено слов: {n}', {n: doneCount}) : t('Сейчас нечего повторять')}</div>
+      <p class="hint">${t('Добавляй новые слова, нажимая на них в книгах.')}</p></div>`;
     rebuildVMap(); return;
   }
   const w = card.lemma || card.word;
@@ -720,7 +936,7 @@ function nextCard(){
       ${ctx ? `<div class="ctx">${ctx}</div>` : ''}
       <div id="ans"></div>
     </div>
-    <div id="revActions"><button class="btn primary" style="width:100%" id="reveal">Показать перевод</button></div>`;
+    <div id="revActions"><button class="btn primary" style="width:100%" id="reveal">${t('Показать перевод')}</button></div>`;
   $('#fSay').onclick = e => { e.stopPropagation(); speak(w); };
   if(S.autoSpeak) speak(w);
   $('#reveal').onclick = reveal; $('#flash').onclick = reveal;
@@ -729,7 +945,7 @@ function reveal(){
   if(revealed) return; revealed = true;
   $('#ans').innerHTML = `<div class="ans">${esc(card.translation||'')}</div><div class="pos">${esc(card.pos||'')}</div>`;
   $('#revActions').innerHTML = `<div class="grades">
-    ${['Снова','Трудно','Хорошо','Легко'].map((l,g) => `<button class="g${g}" data-g="${g}">${l}<small>${intervalHint(card,g)}</small></button>`).join('')}
+    ${[t('Снова'),t('Трудно'),t('Хорошо'),t('Легко')].map((l,g) => `<button class="g${g}" data-g="${g}">${l}<small>${intervalHint(card,g)}</small></button>`).join('')}
   </div>`;
   $$('#revActions [data-g]').forEach(b => b.onclick = () => grade(+b.dataset.g));
 }
@@ -746,7 +962,7 @@ async function grade(g){
 // ---------- settings ----------
 function renderVoiceSelect(){
   const sel = $('#sVoice');
-  sel.innerHTML = '<option value="">Автоматически</option>' + VOICES.map(v => `<option ${v.name===S.voice?'selected':''} value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('');
+  sel.innerHTML = '<option value="">' + t('Автоматически') + '</option>' + VOICES.map(v => `<option ${v.name===S.voice?'selected':''} value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('');
 }
 function renderSettings(){
   $('#sEmail').textContent = SESSION ? SESSION.email : '';
@@ -754,12 +970,14 @@ function renderSettings(){
   $('#sRate').value = S.rate; $('#rateVal').textContent = S.rate;
   $('#sAutoSpeak').checked = S.autoSpeak; $('#sShowKnown').checked = S.showKnown;
   renderVoiceSelect();
+  $('#sTrLang').innerHTML = Object.entries(TR_LANGS).map(([k,v]) => `<option value="${k}" ${k===S.trLang?'selected':''}>${v}</option>`).join('');
 }
+$('#sTrLang').onchange = e => { S.trLang = e.target.value; saveSettings(); toast(t('Новые переводы будут на этом языке')); };
 $('#logoutBtn').onclick = () => logout(false);
 $('#shareBtn').onclick = async () => {
   const url = location.origin + location.pathname;
-  try{ if(navigator.share){ await navigator.share({title:'Graded Reader', text:'Читалка для изучения английского', url}); return; } }catch(e){ return; }
-  try{ await navigator.clipboard.writeText(url); toast('Ссылка скопирована'); }catch(e){ toast(url); }
+  try{ if(navigator.share){ await navigator.share({title:'Graded Reader', text:t('Читалка для изучения английского'), url}); return; } }catch(e){ return; }
+  try{ await navigator.clipboard.writeText(url); toast(t('Ссылка скопирована')); }catch(e){ toast(url); }
 };
 
 // ---------- login ----------
@@ -772,19 +990,19 @@ function loginStep(step){
 }
 async function sendCode(){
   const email = $('#lEmail').value.trim().toLowerCase();
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ loginMsg('Проверь адрес почты', true); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ loginMsg(t('Проверь адрес почты'), true); return; }
   loginEmail = email; LS.set('gr.lastEmail', email);
-  $('#lSend').disabled = true; loginMsg('Отправляю письмо…');
+  $('#lSend').disabled = true; loginMsg(t('Отправляю письмо…'));
   try{
     await rawApi('/api/auth/send', {method:'POST', body:{email}});
-    loginStep('code'); loginMsg('Письмо отправлено. Проверь «Входящие» и «Спам».');
+    loginStep('code'); loginMsg(t('Письмо отправлено. Проверь «Входящие» и «Спам».'));
   }catch(e){ loginMsg(e.message, true); }
   $('#lSend').disabled = false;
 }
 async function verifyCode(){
   const code = $('#lCode').value.replace(/\D/g, '');
-  if(code.length < 6){ loginMsg('Введи код из письма', true); return; }
-  $('#lVerify').disabled = true; loginMsg('Проверяю…');
+  if(code.length < 6){ loginMsg(t('Введи код из письма'), true); return; }
+  $('#lVerify').disabled = true; loginMsg(t('Проверяю…'));
   try{
     const s = await rawApi('/api/auth/verify', {method:'POST', body:{email: loginEmail, code}});
     saveSession(s); loginMsg(''); startApp();
@@ -800,7 +1018,7 @@ $('#lResend').onclick = () => { $('#lEmail').value = loginEmail; sendCode(); };
 function logout(expired){
   saveSession(null); LS.set('gr.progress', {}); PROGRESS = {}; VOCAB = []; rebuildVMap();
   $('#lEmail').value = LS.get('gr.lastEmail', '');
-  loginStep('email'); loginMsg(expired ? 'Сессия закончилась, войди снова.' : '');
+  loginStep('email'); loginMsg(expired ? t('Сессия закончилась, войди снова.') : '');
   show('login');
 }
 function readMagicLink(){
@@ -823,6 +1041,7 @@ function applyStyle(){ document.documentElement.style.setProperty('--read-size',
 
 // ---------- start ----------
 applyStyle();
+translateDom(document.body);
 readMagicLink();
 if(SESSION) startApp(); else logout(false);
 </script>

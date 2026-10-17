@@ -167,6 +167,29 @@ BOOKS = [
     },
 ]
 
+ABOUT_I18N = {'burning-bed': {'uk': 'Коротка смішна історія з життя автора. Є аудіо.', 'en': "A short funny story from the author's life. With audio."},
+    'fire-on-the-mountain': {'uk': 'Пригодницька повість на 1 200 слів — найлегший рівень (≈A2).', 'en': 'An adventure story using just 1,200 words — the easiest level (≈A2).'},
+    'indonesian-love-story': {'uk': 'Історія кохання на 1 200 слів (≈A2).', 'en': 'A love story using 1,200 words (≈A2).'},
+    'sherlock-holmes': {'uk': '12 детективних оповідань про Шерлока Холмса.', 'en': '12 detective stories about Sherlock Holmes.'},
+    'time-machine': {'uk': 'Класична фантастика про подорож у далеке майбутнє.', 'en': 'Classic science fiction about a journey into the far future.'},
+    'great-gatsby': {'uk': 'Америка 1920-х: багатство, вечірки й загадковий Гетсбі.', 'en': '1920s America: wealth, parties and the mysterious Gatsby.'},
+    'jekyll-hyde': {'uk': 'Учений, який живе двома життями.', 'en': 'A scientist who lives two lives.'},
+    'metamorphosis': {'uk': 'Грегор прокидається величезною комахою.', 'en': 'Gregor wakes up as a giant insect.'},
+    'christmas-carol': {'uk': 'Скупий Скрудж і три різдвяні привиди.', 'en': 'Mean old Scrooge and three Christmas ghosts.'},
+    'alice': {'uk': 'Аліса в Країні чудес — гра зі словами й логікою.', 'en': 'Alice in Wonderland — a playful game with words and logic.'},
+    'more-william': {'uk': 'Смішні історії про хлопчика, який постійно вскакує в халепу.', 'en': 'Funny stories about a boy who is always in trouble.'},
+    'jane-eyre': {'uk': 'Класичний роман про важкий шлях до щастя.', 'en': 'A classic novel about a hard road to happiness.'},
+    'wuthering-heights': {'uk': 'Буремний перевал — складний, але сильний роман.', 'en': 'Wuthering Heights — a difficult but powerful novel.'},
+    'art-of-war': {'uk': 'Мистецтво війни — практичні поради, які застосовують і в бізнесі.', 'en': 'The Art of War — practical advice also used in business.'},
+    'japan': {'uk': 'Подорож Японією 1890-х.', 'en': 'A journey through Japan in the 1890s.'},
+    'free-culture': {'uk': 'Як медіа й закон контролюють творчість.', 'en': 'How media and law control creativity.'},
+    'frederick-douglass': {'uk': 'Автобіографія людини, яка втекла з рабства. Є жорстокі сцени.', 'en': 'The autobiography of a man who escaped slavery. Contains violent scenes.'},
+    'the-prince': {'uk': '«Державець» — як має поводитися правитель.', 'en': 'The Prince — how a ruler should behave.'}}
+
+for _b in BOOKS:
+    for _lang, _text in ABOUT_I18N.get(_b["id"], {}).items():
+        _b["about_" + _lang] = _text
+
 BOOKS_BY_ID = {b["id"]: b for b in BOOKS}
 
 
