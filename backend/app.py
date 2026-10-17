@@ -278,8 +278,10 @@ def book_page(book_id, level, page):
         return err("Не получилось подготовить книгу. Попробуй другой уровень.", 500)
     page = max(0, min(page, total - 1))
     p = store.get_page(book_id, level, page)
+    # also cleans pages cached before the print-header filter existed
+    text = "\n\n".join(x.strip() for x in textproc.strip_print_junk(p["text"]).split("\n\n") if x.strip())
     return jsonify({"book_id": book_id, "level": level, "page": page, "total": total,
-                    "title": p.get("title"), "text": p["text"]})
+                    "title": p.get("title"), "text": text})
 
 
 # ---------- translation (signed-in users, daily limit on new translations) ----------
