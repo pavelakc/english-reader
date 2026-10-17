@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Reader">
+<meta name="theme-color" content="#f6f1e7">
+<title>Graded Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f1e7; --paper:#fffdf8; --ink:#2b2620; --muted:#857a6b; --line:#e6dccb;
+  --accent:#b4532a; --accent-soft:#f3dccf; --learn:#f5d76e; --learn-ink:#6b5300;
+  --known:#cfe6cf; --ok:#3d7a4a; --bad:#b23a3a; --shadow:0 8px 30px rgba(60,40,20,.12);
+  --read-size:20px;
+  --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --serif:"Literata",Georgia,serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#191714; --paper:#211e1a; --ink:#ebe3d6; --muted:#9c907f; --line:#352f28;
+    --accent:#e08a5d; --accent-soft:#3d2a20; --learn:#6a5617; --learn-ink:#ffe28a; --known:#24402a;
+    --shadow:0 8px 30px rgba(0,0,0,.5);}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui)}
+body{min-height:100dvh;padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit;cursor:pointer}
+.hidden{display:none!important}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.top h1{font:600 20px var(--serif);margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{border:0;background:transparent;font-size:22px;padding:6px 8px;border-radius:10px}
+.icon-btn:active{background:var(--line)}
+.wrap{max-width:680px;margin:0 auto;padding:16px}
+
+/* bottom nav */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--paper);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);height:calc(60px + env(safe-area-inset-bottom))}
+nav.tabs button{position:relative;flex:1;border:0;background:none;padding:9px 0 7px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav.tabs button span{font-size:21px;line-height:1}
+nav.tabs button.on{color:var(--accent)}
+.badge{position:absolute;top:4px;left:calc(50% + 8px);background:var(--accent);color:#fff;border-radius:9px;font-size:10px;padding:1px 6px;font-weight:600}
+
+/* library */
+.section-title{font:600 13px var(--ui);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 2px 10px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:12px}
+.book h3{font:600 18px var(--serif);margin:0 0 2px}
+.book .by{color:var(--muted);font-size:13px;margin-bottom:6px}
+.book p{margin:0 0 10px;font-size:14px;line-height:1.45}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{white-space:nowrap;flex:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 12px;font-size:13px}
+.chip:active,.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.cont{display:flex;align-items:center;gap:12px}
+.cont .t{flex:1}
+.cont h3{font:600 16px var(--serif);margin:0}
+.bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.filter{display:flex;gap:8px;margin:4px 0 6px;overflow-x:auto}
+
+/* reader */
+#reader .text{font-family:var(--serif);font-size:var(--read-size);line-height:1.7;padding:6px 4px 30px}
+#reader .text p{margin:0 0 1em;text-indent:1.2em}
+#reader .text p.h{text-indent:0;font-weight:600;text-align:center;margin:.6em 0 1em}
+.w{border-radius:4px;transition:background .15s}
+.w.learning{background:var(--learn);color:var(--learn-ink);box-shadow:0 0 0 1px var(--learn)}
+.w.known.showknown{background:var(--known)}
+.w.active{background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent-soft)}
+.s.speaking{background:var(--accent-soft);border-radius:4px}
+.pager{position:sticky;bottom:calc(60px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;
+  background:var(--bg);padding:10px 0;border-top:1px solid var(--line)}
+.pager button{border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:10px 16px;font-size:15px}
+.pager button:disabled{opacity:.35}
+.pager .mid{flex:1;text-align:center;font-size:13px;color:var(--muted)}
+.loading{color:var(--muted);text-align:center;padding:50px 10px;font-size:15px}
+.spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;
+  animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.errbox{background:var(--accent-soft);border-radius:12px;padding:14px;font-size:14px;line-height:1.45}
+
+/* bottom sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--paper);border-radius:20px 20px 0 0;
+  box-shadow:var(--shadow);padding:10px 18px calc(18px + env(safe-area-inset-bottom));max-height:78dvh;overflow:auto;
+  transform:translateY(105%);transition:transform .25s ease;max-width:680px;margin:0 auto}
+.sheet.on{transform:none}
+.grab{width:38px;height:5px;background:var(--line);border-radius:3px;margin:0 auto 12px}
+.wordline{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.wordline .big{font:600 26px var(--serif)}
+.ipa{color:var(--muted);font-size:15px}
+.speak{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 12px;font-size:14px}
+.tr{font-size:22px;margin:10px 0 4px;font-weight:600}
+.pos{color:var(--muted);font-size:13px}
+.other{font-size:14px;color:var(--muted);margin-top:4px}
+.note{font-size:14px;line-height:1.45;background:var(--bg);border-radius:10px;padding:10px 12px;margin-top:10px}
+.phrase{font-size:15px;margin-top:10px;border-left:3px solid var(--accent);padding-left:10px}
+.sent{font:15px/1.5 var(--serif);color:var(--muted);margin-top:12px}
+.sent-tr{font-size:15px;line-height:1.45;margin-top:6px}
+.actions{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;border:0;border-radius:12px;padding:13px 10px;font-weight:600;font-size:15px;background:var(--line)}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.ghost{background:transparent;border:1px solid var(--line)}
+.skel{height:14px;background:var(--line);border-radius:6px;margin:10px 0;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+
+/* vocab list */
+.vrow{display:flex;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid var(--line)}
+.vrow .t{flex:1;min-width:0}
+.vrow b{font:600 17px var(--serif)}
+.vrow .m{color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--learn);flex:none}
+.dot.known{background:var(--ok)}
+.stats{display:flex;gap:10px}
+.stat{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+.stat b{display:block;font:600 24px var(--serif)}
+.stat span{font-size:12px;color:var(--muted)}
+
+/* review */
+.flash{min-height:260px;display:flex;flex-direction:column;justify-content:center;text-align:center}
+.flash .big{font:600 32px var(--serif);margin-bottom:6px}
+.flash .ctx{font:16px/1.5 var(--serif);color:var(--muted);margin-top:14px}
+.flash .ctx mark{background:var(--learn);color:var(--learn-ink);border-radius:3px;padding:0 2px}
+.flash .ans{font-size:24px;font-weight:600;margin-top:14px}
+.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.grades button{border:0;border-radius:12px;padding:12px 4px;font-weight:600;font-size:14px;display:flex;flex-direction:column;gap:2px}
+.grades small{font-weight:400;font-size:11px;opacity:.8}
+.g0{background:#f2d3d3;color:#7a1f1f}.g1{background:#f5e3c4;color:#6e4a0d}.g2{background:#d3ead6;color:#1f5a2c}.g3{background:#cfe0f2;color:#1d4670}
+@media (prefers-color-scheme: dark){.g0{background:#4a2323;color:#ffc9c9}.g1{background:#4a3a1d;color:#ffe2a8}.g2{background:#22402a;color:#c3f0cb}.g3{background:#1f3550;color:#c4dcff}}
+
+/* settings */
+label.f{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+input[type=text],input[type=password],input[type=url],select{width:100%;font:16px var(--ui);padding:12px;border-radius:12px;
+  border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+.row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+input[type=range]{width:100%}
+.hint{font-size:13px;color:var(--muted);line-height:1.45}
+.toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:.2s;z-index:30;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+
+<!-- LIBRARY -->
+<section id="v-library">
+  <div class="top"><h1>Библиотека</h1></div>
+  <div class="wrap">
+    <div id="continue"></div>
+    <div class="section-title">Книги</div>
+    <div class="filter" id="kindFilter">
+      <button class="chip on" data-k="all">Все</button>
+      <button class="chip" data-k="easy">Лёгкие (A2)</button>
+      <button class="chip" data-k="fiction">Художественные</button>
+      <button class="chip" data-k="non-fiction">Нон-фикшн</button>
+    </div>
+    <div id="books"><div class="loading"><div class="spinner"></div>Загружаю каталог…</div></div>
+    <p class="hint">Адаптированные книги Пола Нейшна (Victoria University of Wellington). Бесплатны для использования, продавать нельзя. Уровень — сколько слов нужно знать: 1200 ≈ A2, 4000 ≈ B1+, 6000 ≈ B2, 8000 ≈ C1.</p>
+  </div>
+</section>
+
+<!-- READER -->
+<section id="v-reader" class="hidden">
+  <div class="top">
+    <button class="icon-btn" id="backBtn" aria-label="Назад">‹</button>
+    <h1 id="rTitle"></h1>
+    <button class="icon-btn" id="listenBtn" aria-label="Слушать страницу">▶︎</button>
+  </div>
+  <div class="wrap" id="reader">
+    <audio id="bookAudio" controls class="hidden" style="width:100%;margin-bottom:8px"></audio>
+    <div class="text" id="rText"></div>
+    <div class="pager">
+      <button id="prevBtn">←</button>
+      <div class="mid"><div id="pageInfo"></div><div class="bar"><i id="pageBar"></i></div></div>
+      <button id="nextBtn">→</button>
+    </div>
+  </div>
+</section>
+
+<!-- WORDS -->
+<section id="v-words" class="hidden">
+  <div class="top"><h1>Мои слова</h1></div>
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b id="stLearn">0</b><span>учу</span></div>
+      <div class="stat"><b id="stKnown">0</b><span>выучил</span></div>
+      <div class="stat"><b id="stDue">0</b><span>повторить</span></div>
+    </div>
+    <div class="filter" id="vocabFilter" style="margin-top:14px">
+      <button class="chip on" data-s="learning">Учу</button>
+      <button class="chip" data-s="known">Выучил</button>
+      <button class="chip" data-s="all">Все</button>
+    </div>
+    <div id="vocabList"></div>
+  </div>
+</section>
+
+<!-- REVIEW -->
+<section id="v-review" class="hidden">
+  <div class="top"><h1>Повторение</h1><span class="hint" id="revCount"></span></div>
+  <div class="wrap"><div id="reviewBox"></div></div>
+</section>
+
+<!-- SETTINGS -->
+<section id="v-settings" class="hidden">
+  <div class="top"><h1>Настройки</h1></div>
+  <div class="wrap">
+    <div class="card">
+      <label class="f">Адрес сервера (Railway)</label>
+      <input type="url" id="sUrl" placeholder="https://graded-reader.up.railway.app" autocapitalize="off" autocorrect="off">
+      <label class="f">Ключ приложения (APP_KEY)</label>
+      <input type="password" id="sKey" autocapitalize="off" autocorrect="off">
+      <div class="actions"><button class="btn primary" id="saveConn">Сохранить и проверить</button></div>
+      <p class="hint" id="connStatus"></p>
+    </div>
+    <div class="card">
+      <label class="f">Размер текста: <span id="sizeVal"></span></label>
+      <input type="range" id="sSize" min="16" max="28" step="1">
+      <label class="f">Голос</label>
+      <select id="sVoice"></select>
+      <label class="f">Скорость речи: <span id="rateVal"></span></label>
+      <input type="range" id="sRate" min="0.5" max="1.2" step="0.05">
+      <div class="row"><span>Произносить слово при нажатии</span><input type="checkbox" id="sAutoSpeak"></div>
+      <div class="row"><span>Подсвечивать выученные слова</span><input type="checkbox" id="sShowKnown"></div>
+    </div>
+  </div>
+</section>
+
+<nav class="tabs">
+  <button data-v="library" class="on"><span>📚</span>Книги</button>
+  <button data-v="words"><span>🗂️</span>Слова</button>
+  <button data-v="review"><span>🔁</span>Повтор<b class="badge hidden" id="dueBadge"></b></button>
+  <button data-v="settings"><span>⚙️</span>Настройки</button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- storage helpers (localStorage can throw on iOS private mode) ----------
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const S = Object.assign({url:'', key:'', size:20, rate:0.85, voice:'', autoSpeak:true, showKnown:false}, LS.get('gr.settings', {}));
+const saveSettings = () => LS.set('gr.settings', S);
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),1800); }
+
+// ---------- API ----------
+async function api(path, opts={}){
+  if(!S.url) throw new Error('Укажи адрес сервера в настройках');
+  const res = await fetch(S.url.replace(/\/$/,'') + path, {
+    method: opts.method || 'GET',
+    headers: {'Content-Type':'application/json', 'X-App-Key': S.key},
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  let data = null; try{ data = await res.json(); }catch(e){}
+  if(!res.ok) throw new Error((data && data.error) || ('Ошибка сервера ' + res.status));
+  return data;
+}
+
+// ---------- state ----------
+let BOOKS = LS.get('gr.books', []);
+let VOCAB = [];              // array from server
+let VMAP = new Map();        // word/lemma -> vocab item
+let PROGRESS = LS.get('gr.progress', {});  // "id:level" -> {page,total}
+let cur = null;              // {book, level, page, total}
+
+const LEVEL_NAME = {0:'Рассказ', 1200:'1200 · A2', 4000:'4000 · B1+', 6000:'6000 · B2', 8000:'8000 · C1'};
+
+// ---------- navigation ----------
+function show(v){
+  $$('section').forEach(s => s.classList.toggle('hidden', s.id !== 'v-' + v));
+  $$('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v || (v==='reader' && b.dataset.v==='library')));
+  window.scrollTo(0,0);
+  if(v === 'library') renderLibrary();
+  if(v === 'words') renderVocab();
+  if(v === 'review') startReview();
+  if(v === 'settings') renderSettings();
+  if(v !== 'reader') stopSpeaking();
+}
+$$('nav.tabs button').forEach(b => b.onclick = () => show(b.dataset.v));
+
+// ---------- library ----------
+let kind = 'all';
+$('#kindFilter').onclick = e => {
+  const b = e.target.closest('.chip'); if(!b) return;
+  kind = b.dataset.k; $$('#kindFilter .chip').forEach(c => c.classList.toggle('on', c === b)); renderBooks();
+};
+async function loadBooks(){
+  try{
+    BOOKS = await api('/api/books'); LS.set('gr.books', BOOKS);
+    const prog = await api('/api/progress');
+    prog.forEach(p => PROGRESS[p.book_id + ':' + p.level] = {page:p.page, total:p.total_pages, at:p.updated_at});
+    LS.set('gr.progress', PROGRESS);
+  }catch(e){
+    if(!BOOKS.length) $('#books').innerHTML = `<div class="errbox">${esc(e.message)}</div>`;
+  }
+  renderLibrary();
+}
+function renderLibrary(){ renderContinue(); renderBooks(); }
+function renderContinue(){
+  const items = Object.entries(PROGRESS)
+    .map(([k,p]) => { const [id,lv]=k.split(':'); return {book:BOOKS.find(b=>b.id===id), level:+lv, ...p}; })
+    .filter(x => x.book).sort((a,b) => String(b.at||'').localeCompare(String(a.at||''))).slice(0,3);
+  $('#continue').innerHTML = items.length ? '<div class="section-title">Продолжить</div>' + items.map(x => {
+    const pct = x.total ? Math.round((x.page+1)/x.total*100) : 0;
+    return `<div class="card cont" data-id="${x.book.id}" data-lv="${x.level}">
+      <div class="t"><h3>${esc(x.book.title)}</h3><div class="hint">${LEVEL_NAME[x.level]||x.level} · стр. ${x.page+1}${x.total?' из '+x.total:''}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div></div><span style="font-size:22px">›</span></div>`;
+  }).join('') : '';
+  $$('#continue .cont').forEach(el => el.onclick = () => openBook(el.dataset.id, +el.dataset.lv));
+}
+function renderBooks(){
+  if(!BOOKS.length) return;
+  const list = BOOKS.filter(b => kind==='all' || (kind==='easy' ? b.levels.some(l=>l<=1200) : b.kind===kind));
+  $('#books').innerHTML = list.map(b => `<div class="card book">
+    <h3>${esc(b.title)}</h3><div class="by">${esc(b.author)}</div><p>${esc(b.about)}</p>
+    <div class="chips">${b.levels.map(l => `<button class="chip" data-id="${b.id}" data-lv="${l}">${LEVEL_NAME[l]||l}</button>`).join('')}</div>
+  </div>`).join('');
+  $$('#books .chip').forEach(c => c.onclick = () => openBook(c.dataset.id, +c.dataset.lv));
+}
+
+// ---------- reader ----------
+async function openBook(id, level){
+  const book = BOOKS.find(b => b.id === id); if(!book) return;
+  const p = PROGRESS[id + ':' + level];
+  cur = {book, level, page: p ? p.page : 0, total: p ? p.total : null};
+  $('#rTitle').textContent = book.title;
+  const au = $('#bookAudio');
+  if(book.audio){ au.src = book.audio; au.classList.remove('hidden'); } else { au.removeAttribute('src'); au.classList.add('hidden'); }
+  show('reader');
+  loadPage(cur.page);
+}
+async function loadPage(n){
+  stopSpeaking();
+  const first = !cur.total;
+  $('#rText').innerHTML = `<div class="loading"><div class="spinner"></div>${first ? 'Скачиваю и готовлю книгу… первый раз это может занять до минуты' : 'Загружаю…'}</div>`;
+  try{
+    const d = await api(`/api/books/${cur.book.id}/${cur.level}/page/${n}`);
+    cur.page = d.page; cur.total = d.total;
+    renderPage(d.text);
+    saveProgress();
+  }catch(e){
+    $('#rText').innerHTML = `<div class="errbox">${esc(e.message)}</div>`;
+  }
+  updatePager();
+  window.scrollTo(0,0);
+}
+const WORD_RE = /[A-Za-z]+(?:['’][A-Za-z]+)*/g;
+function renderPage(text){
+  const html = text.split(/\n\n+/).map(par => {
+    const isH = par.length < 70 && (/^(chapter|part|book|story)\b/i.test(par) || par === par.toUpperCase());
+    const sents = par.match(/[^.!?]+[.!?]+["'”’)]*\s*|[^.!?]+$/g) || [par];
+    const body = sents.map(s => '<span class="s">' + wrapWords(s) + '</span>').join('');
+    return `<p class="${isH ? 'h' : ''}">${body}</p>`;
+  }).join('');
+  $('#rText').innerHTML = html;
+  highlightWords();
+}
+function wrapWords(s){
+  let out = '', last = 0;
+  for(const m of s.matchAll(WORD_RE)){
+    out += esc(s.slice(last, m.index)) + `<span class="w">${esc(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  return out + esc(s.slice(last));
+}
+function stems(w){
+  w = w.toLowerCase().replace(/[’']/g, "'").replace(/'s$/, '');
+  const out = [w];
+  const add = x => { if(x && x.length > 1) out.push(x); };
+  if(w.endsWith('ies')) add(w.slice(0,-3)+'y');
+  if(w.endsWith('es')) add(w.slice(0,-2));
+  if(w.endsWith('s')) add(w.slice(0,-1));
+  if(w.endsWith('ied')) add(w.slice(0,-3)+'y');
+  if(w.endsWith('ed')){ add(w.slice(0,-2)); add(w.slice(0,-1)); if(/(.)\1ed$/.test(w)) add(w.slice(0,-3)); }
+  if(w.endsWith('ing')){ add(w.slice(0,-3)); add(w.slice(0,-3)+'e'); if(/(.)\1ing$/.test(w)) add(w.slice(0,-4)); }
+  if(w.endsWith('er')) add(w.slice(0,-2));
+  if(w.endsWith('ly')) add(w.slice(0,-2));
+  return out;
+}
+function lookup(w){ for(const s of stems(w)){ const v = VMAP.get(s); if(v) return v; } return null; }
+function highlightWords(){
+  $$('#rText .w').forEach(el => {
+    const v = lookup(el.textContent);
+    el.classList.toggle('learning', !!v && v.status === 'learning');
+    el.classList.toggle('known', !!v && v.status === 'known');
+    el.classList.toggle('showknown', S.showKnown);
+  });
+}
+function updatePager(){
+  $('#prevBtn').disabled = !cur || cur.page <= 0;
+  $('#nextBtn').disabled = !cur || !cur.total || cur.page >= cur.total - 1;
+  $('#pageInfo').textContent = cur && cur.total ? `Стр. ${cur.page+1} из ${cur.total}` : '';
+  $('#pageBar').style.width = cur && cur.total ? ((cur.page+1)/cur.total*100) + '%' : '0';
+}
+let progTimer;
+function saveProgress(){
+  const k = cur.book.id + ':' + cur.level;
+  PROGRESS[k] = {page:cur.page, total:cur.total, at:new Date().toISOString()};
+  LS.set('gr.progress', PROGRESS);
+  clearTimeout(progTimer);
+  progTimer = setTimeout(() => api('/api/progress', {method:'POST', body:{book_id:cur.book.id, level:cur.level, page:cur.page, total_pages:cur.total}}).catch(()=>{}), 800);
+}
+$('#prevBtn').onclick = () => cur.page > 0 && loadPage(cur.page - 1);
+$('#nextBtn').onclick = () => cur.page < cur.total - 1 && loadPage(cur.page + 1);
+$('#backBtn').onclick = () => show('library');
+// swipe between pages
+let tx=0, ty=0, tt=0;
+$('#rText').addEventListener('touchstart', e => { tx=e.touches[0].clientX; ty=e.touches[0].clientY; tt=Date.now(); }, {passive:true});
+$('#rText').addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+  if(Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy)*1.8 && Date.now()-tt < 600){
+    if(dx < 0 && !$('#nextBtn').disabled) loadPage(cur.page+1);
+    if(dx > 0 && !$('#prevBtn').disabled) loadPage(cur.page-1);
+  }
+}, {passive:true});
+
+// tap on word
+$('#rText').addEventListener('click', e => {
+  const w = e.target.closest('.w'); if(!w) return;
+  $$('.w.active').forEach(x => x.classList.remove('active'));
+  w.classList.add('active');
+  const sentence = w.closest('.s').textContent.trim();
+  const word = w.textContent.replace(/’/g, "'");
+  if(S.autoSpeak) speak(word);
+  openWordSheet(word, sentence);
+});
+
+// ---------- speech ----------
+let VOICES = [];
+function loadVoices(){
+  VOICES = (speechSynthesis.getVoices() || []).filter(v => /^en[-_]/i.test(v.lang));
+  if($('#sVoice')) renderVoiceSelect();
+}
+if('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function pickVoice(){
+  return VOICES.find(v => v.name === S.voice) || VOICES.find(v => /en[-_]US/i.test(v.lang) && /samantha|alex|aaron|nicky|google/i.test(v.name))
+    || VOICES.find(v => /en[-_]US/i.test(v.lang)) || VOICES[0];
+}
+function speak(text, rate, onend){
+  if(!('speechSynthesis' in window)) { toast('Озвучка не поддерживается'); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const v = pickVoice(); if(v){ u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+  u.rate = rate || S.rate;
+  if(onend) u.onend = onend;
+  speechSynthesis.speak(u);
+}
+let listening = false;
+function stopSpeaking(){
+  listening = false; $('#listenBtn').textContent = '▶︎';
+  $$('.s.speaking').forEach(s => s.classList.remove('speaking'));
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+}
+$('#listenBtn').onclick = () => {
+  if(listening){ stopSpeaking(); return; }
+  const sents = $$('#rText .s'); if(!sents.length) return;
+  listening = true; $('#listenBtn').textContent = '■';
+  let i = 0;
+  const next = () => {
+    $$('.s.speaking').forEach(s => s.classList.remove('speaking'));
+    if(!listening || i >= sents.length){ stopSpeaking(); return; }
+    const s = sents[i++]; s.classList.add('speaking');
+    s.scrollIntoView({block:'center', behavior:'smooth'});
+    speak(s.textContent, S.rate, next);
+  };
+  next();
+};
+
+// ---------- word sheet ----------
+function openSheet(html){ $('#sheetBody').innerHTML = html; $('#sheet').classList.add('on'); $('#scrim').classList.add('on'); }
+function closeSheet(){ $('#sheet').classList.remove('on'); $('#scrim').classList.remove('on'); $$('.w.active').forEach(x => x.classList.remove('active')); }
+$('#scrim').onclick = closeSheet;
+let sy = 0;
+$('#sheet').addEventListener('touchstart', e => sy = e.touches[0].clientY, {passive:true});
+$('#sheet').addEventListener('touchend', e => { if(e.changedTouches[0].clientY - sy > 80 && $('#sheet').scrollTop <= 0) closeSheet(); }, {passive:true});
+
+let sheetReq = 0;
+async function openWordSheet(word, sentence){
+  const req = ++sheetReq;
+  const saved = lookup(word);
+  openSheet(`<div class="wordline"><span class="big">${esc(word)}</span>
+    <button class="speak" data-say="${esc(word)}">🔊</button><button class="speak" data-slow="${esc(word)}">🐢</button></div>
+    <div class="skel" style="width:40%"></div><div class="skel" style="width:70%"></div><div class="skel" style="width:55%"></div>`);
+  bindSpeak();
+  try{
+    const t = await api('/api/translate', {method:'POST', body:{word, sentence}});
+    if(req !== sheetReq) return;
+    renderWordSheet(t, sentence, saved);
+  }catch(e){
+    if(req !== sheetReq) return;
+    $('#sheetBody').insertAdjacentHTML('beforeend', `<div class="errbox">${esc(e.message)}</div>`);
+    $$('#sheetBody .skel').forEach(x => x.remove());
+  }
+}
+function renderWordSheet(t, sentence, saved){
+  const lemma = t.lemma && t.lemma.toLowerCase() !== t.word.toLowerCase() ? t.lemma : '';
+  const hl = esc(sentence).replace(new RegExp('\\b' + t.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b', 'i'), m => `<b>${m}</b>`);
+  const status = saved ? (saved.status === 'known' ? '✓ Выучено' : '★ В словаре') : '';
+  $('#sheetBody').innerHTML = `
+    <div class="wordline"><span class="big">${esc(t.word)}</span><span class="ipa">${esc(t.ipa||'')}</span>
+      <button class="speak" data-say="${esc(t.word)}">🔊</button><button class="speak" data-slow="${esc(lemma || t.word)}">🐢</button></div>
+    ${lemma ? `<div class="pos">форма слова <b>${esc(lemma)}</b></div>` : ''}
+    <div class="tr">${esc(t.translation||'')}</div>
+    <div class="pos">${esc(t.pos||'')}${status ? ' · ' + status : ''}</div>
+    ${t.other && t.other.length ? `<div class="other">Ещё: ${t.other.map(esc).join(', ')}</div>` : ''}
+    ${t.phrase && t.phrase.text ? `<div class="phrase"><b>${esc(t.phrase.text)}</b> — ${esc(t.phrase.translation)}</div>` : ''}
+    ${t.note ? `<div class="note">${esc(t.note)}</div>` : ''}
+    <div class="sent">${hl}</div>
+    <div id="sentTr"></div>
+    <div class="actions">
+      <button class="btn ghost" id="sayS">🔊 Фраза</button>
+      <button class="btn ghost" id="trS">Перевести фразу</button>
+    </div>
+    <div class="actions">
+      ${saved && saved.status === 'learning' ? `<button class="btn" id="markKnown">Уже знаю</button>`
+        : `<button class="btn" id="markKnown">Знаю</button>`}
+      ${saved ? `<button class="btn" id="removeW">Удалить</button>` : `<button class="btn primary" id="saveW">＋ В словарь</button>`}
+    </div>`;
+  bindSpeak();
+  $('#sayS').onclick = () => speak(sentence);
+  $('#trS').onclick = async () => {
+    $('#sentTr').innerHTML = '<div class="skel"></div>';
+    try{
+      const r = await api('/api/translate-sentence', {method:'POST', body:{sentence}});
+      $('#sentTr').innerHTML = `<div class="sent-tr">${esc(r.translation)}</div>${r.note ? `<div class="note">${esc(r.note)}</div>` : ''}`;
+    }catch(e){ $('#sentTr').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
+  };
+  const payload = status => ({word: t.word, lemma: t.lemma, translation: t.translation, ipa: t.ipa, pos: t.pos, context: sentence, status});
+  const save = async status => {
+    try{
+      const v = saved ? await api(`/api/vocab/${saved.id}`, {method:'PATCH', body:{status}}) : await api('/api/vocab', {method:'POST', body:payload(status)});
+      upsertVocab(v); highlightWords(); closeSheet();
+      toast(status === 'known' ? 'Отмечено как выученное' : 'Добавлено в словарь');
+    }catch(e){ toast(e.message); }
+  };
+  if($('#saveW')) $('#saveW').onclick = () => save('learning');
+  $('#markKnown').onclick = () => save('known');
+  if($('#removeW')) $('#removeW').onclick = async () => {
+    try{ await api(`/api/vocab/${saved.id}`, {method:'DELETE'}); removeVocab(saved.id); highlightWords(); closeSheet(); toast('Удалено'); }
+    catch(e){ toast(e.message); }
+  };
+}
+function bindSpeak(){
+  $$('#sheetBody [data-say]').forEach(b => b.onclick = () => speak(b.dataset.say));
+  $$('#sheetBody [data-slow]').forEach(b => b.onclick = () => speak(b.dataset.slow, 0.5));
+}
+
+// ---------- vocab ----------
+function rebuildVMap(){
+  VMAP = new Map();
+  VOCAB.forEach(v => { VMAP.set(v.word.toLowerCase(), v); if(v.lemma) VMAP.set(v.lemma.toLowerCase(), v); });
+  const due = VOCAB.filter(v => v.status === 'learning' && new Date(v.due_at) <= new Date()).length;
+  $('#dueBadge').textContent = due; $('#dueBadge').classList.toggle('hidden', !due);
+}
+function upsertVocab(v){ const i = VOCAB.findIndex(x => x.id === v.id); if(i >= 0) VOCAB[i] = v; else VOCAB.unshift(v); rebuildVMap(); }
+function removeVocab(id){ VOCAB = VOCAB.filter(x => x.id !== id); rebuildVMap(); }
+async function loadVocab(){ try{ VOCAB = await api('/api/vocab'); rebuildVMap(); }catch(e){} }
+
+let vFilter = 'learning';
+$('#vocabFilter').onclick = e => {
+  const b = e.target.closest('.chip'); if(!b) return;
+  vFilter = b.dataset.s; $$('#vocabFilter .chip').forEach(c => c.classList.toggle('on', c === b)); renderVocab();
+};
+function renderVocab(){
+  const now = new Date();
+  $('#stLearn').textContent = VOCAB.filter(v => v.status === 'learning').length;
+  $('#stKnown').textContent = VOCAB.filter(v => v.status === 'known').length;
+  $('#stDue').textContent = VOCAB.filter(v => v.status === 'learning' && new Date(v.due_at) <= now).length;
+  const list = VOCAB.filter(v => vFilter === 'all' || v.status === vFilter);
+  $('#vocabList').innerHTML = list.length ? list.map(v => `<div class="vrow" data-id="${v.id}">
+      <span class="dot ${v.status}"></span>
+      <div class="t"><b>${esc(v.lemma || v.word)}</b> <span class="ipa">${esc(v.ipa||'')}</span><div class="m">${esc(v.translation||'')}</div></div>
+      <button class="icon-btn" data-say="${esc(v.lemma || v.word)}">🔊</button>
+      <button class="icon-btn" data-toggle="${v.id}">${v.status === 'known' ? '↺' : '✓'}</button>
+    </div>`).join('') : `<p class="hint" style="padding:20px 4px">Пока пусто. Нажми на слово в книге и добавь его в словарь.</p>`;
+  $$('#vocabList [data-say]').forEach(b => b.onclick = () => speak(b.dataset.say));
+  $$('#vocabList [data-toggle]').forEach(b => b.onclick = async () => {
+    const v = VOCAB.find(x => x.id === +b.dataset.toggle);
+    try{ upsertVocab(await api(`/api/vocab/${v.id}`, {method:'PATCH', body:{status: v.status === 'known' ? 'learning' : 'known'}})); renderVocab(); }
+    catch(e){ toast(e.message); }
+  });
+}
+
+// ---------- review (flashcards) ----------
+let queue = [], card = null, revealed = false, doneCount = 0;
+async function startReview(){
+  $('#reviewBox').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try{ queue = await api('/api/review/due?limit=30'); }catch(e){ $('#reviewBox').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; return; }
+  doneCount = 0; nextCard();
+}
+function intervalHint(c, g){
+  const r = c.reps || 0, iv = c.interval_days || 0, ease = c.ease || 2.5;
+  if(g === 0) return '10 мин';
+  let d = g === 1 ? Math.max(1, Math.round(iv*1.2)) : r === 0 ? 1 : r === 1 ? 3 : Math.max(iv+1, Math.round(iv*ease));
+  if(g === 3) d = Math.max(d+1, Math.round(d*1.3));
+  return d < 30 ? d + ' д' : Math.round(d/30) + ' мес';
+}
+function nextCard(){
+  card = queue.shift(); revealed = false;
+  $('#revCount').textContent = card ? `осталось ${queue.length + 1}` : '';
+  if(!card){
+    $('#reviewBox').innerHTML = `<div class="card flash"><div class="big">🎉</div>
+      <div>${doneCount ? `Готово! Повторено слов: ${doneCount}` : 'Сейчас нечего повторять'}</div>
+      <p class="hint">Добавляй новые слова, нажимая на них в книгах.</p></div>`;
+    rebuildVMap(); return;
+  }
+  const w = card.lemma || card.word;
+  const ctx = card.context ? esc(card.context).replace(new RegExp('\\b(' + card.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')\\b', 'i'), '<mark>$1</mark>') : '';
+  $('#reviewBox').innerHTML = `<div class="card flash" id="flash">
+      <div class="big">${esc(w)}</div><div class="ipa">${esc(card.ipa||'')}</div>
+      <div><button class="speak" id="fSay">🔊</button></div>
+      ${ctx ? `<div class="ctx">${ctx}</div>` : ''}
+      <div id="ans"></div>
+    </div>
+    <div id="revActions"><button class="btn primary" style="width:100%" id="reveal">Показать перевод</button></div>`;
+  $('#fSay').onclick = e => { e.stopPropagation(); speak(w); };
+  if(S.autoSpeak) speak(w);
+  $('#reveal').onclick = reveal; $('#flash').onclick = reveal;
+}
+function reveal(){
+  if(revealed) return; revealed = true;
+  $('#ans').innerHTML = `<div class="ans">${esc(card.translation||'')}</div><div class="pos">${esc(card.pos||'')}</div>`;
+  $('#revActions').innerHTML = `<div class="grades">
+    ${['Снова','Трудно','Хорошо','Легко'].map((l,g) => `<button class="g${g}" data-g="${g}">${l}<small>${intervalHint(card,g)}</small></button>`).join('')}
+  </div>`;
+  $$('#revActions [data-g]').forEach(b => b.onclick = () => grade(+b.dataset.g));
+}
+async function grade(g){
+  const c = card;
+  try{
+    const v = await api(`/api/review/${c.id}`, {method:'POST', body:{grade:g}});
+    upsertVocab(v); doneCount++;
+    if(g === 0) queue.push(v);  // show again later in this session
+    nextCard();
+  }catch(e){ toast(e.message); }
+}
+
+// ---------- settings ----------
+function renderVoiceSelect(){
+  const sel = $('#sVoice');
+  sel.innerHTML = '<option value="">Автоматически</option>' + VOICES.map(v => `<option ${v.name===S.voice?'selected':''} value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('');
+}
+function renderSettings(){
+  $('#sUrl').value = S.url; $('#sKey').value = S.key;
+  $('#sSize').value = S.size; $('#sizeVal').textContent = S.size + 'px';
+  $('#sRate').value = S.rate; $('#rateVal').textContent = S.rate;
+  $('#sAutoSpeak').checked = S.autoSpeak; $('#sShowKnown').checked = S.showKnown;
+  renderVoiceSelect();
+}
+$('#saveConn').onclick = async () => {
+  S.url = $('#sUrl').value.trim().replace(/\/$/,''); S.key = $('#sKey').value.trim(); saveSettings();
+  $('#connStatus').textContent = 'Проверяю…';
+  try{
+    await api('/api/health'); await api('/api/books');
+    $('#connStatus').textContent = '✓ Сервер на связи';
+    await Promise.all([loadBooks(), loadVocab()]);
+  }catch(e){ $('#connStatus').textContent = '✗ ' + e.message; }
+};
+$('#sSize').oninput = e => { S.size = +e.target.value; $('#sizeVal').textContent = S.size + 'px'; applyStyle(); saveSettings(); };
+$('#sRate').oninput = e => { S.rate = +e.target.value; $('#rateVal').textContent = S.rate; saveSettings(); };
+$('#sVoice').onchange = e => { S.voice = e.target.value; saveSettings(); speak('Hello! This is my voice.'); };
+$('#sAutoSpeak').onchange = e => { S.autoSpeak = e.target.checked; saveSettings(); };
+$('#sShowKnown').onchange = e => { S.showKnown = e.target.checked; saveSettings(); };
+function applyStyle(){ document.documentElement.style.setProperty('--read-size', S.size + 'px'); }
+
+// ---------- start ----------
+applyStyle();
+if(!S.url){ show('settings'); $('#connStatus').textContent = 'Сначала укажи адрес сервера и ключ.'; }
+else { renderLibrary(); loadBooks(); loadVocab(); }
+</script>
+</body>
+</html>
